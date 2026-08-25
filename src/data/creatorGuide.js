@@ -5,11 +5,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CREATOR_GUIDE_MD = `# 📚 Manual Oficial para Creadores de Mods
-### La Cuchara de Lobelia — Motor Neutral v3.0 (Schema v1.0)
+### La Cuchara de Lobelia — Motor Neutral v3.0 / v4.0 (Schema v1.0)
 
 Bienvenido a la guía oficial para creadores de la comunidad de **La Cuchara de Lobelia**.
 
-La aplicación opera como un **motor neutral y abierto**: no contiene reglas ni documentos propietarios dentro de sus servidores. Son los aficionados, clubes y organizadores de torneos quienes crean y comparten paquetes de datos mediante **enlaces públicos externos** (como GitHub, Gist o Pastebin).
+La aplicación opera como un **motor neutral y abierto**: no contiene reglas, escenarios ni documentos propietarios dentro de su código fuente. Son los aficionados, clubes y organizadores de torneos quienes crean y comparten sus propios paquetes de datos mediante **enlaces públicos externos** (como GitHub, Gist o Pastebin).
 
 ---
 
@@ -25,7 +25,7 @@ La aplicación opera como un **motor neutral y abierto**: no contiene reglas ni 
 # 🎲 GUÍA 1: CÓMO CREAR UN MOD DE MISIONES Y ESCENARIOS
 
 Un mod de misiones permite a los jugadores y torneos:
-* Utilizar el **Selector Aleatorio de Misiones de Torneo** (Pools de Misiones).
+* Utilizar el **Selector Aleatorio y Generador de Rondas de Torneo**.
 * Abrir el **Visor de Mapas y Despliegue en PDF** en español e inglés directamente desde la app.
 * **Descarga 100% Offline:** Guardar todos los PDFs en la memoria del navegador del móvil (IndexedDB) para jugar en sótanos o lugares sin cobertura.
 
@@ -33,7 +33,7 @@ Un mod de misiones permite a los jugadores y torneos:
 
 ### 📂 Paso 1.1: Estructura de Carpetas en tu Repositorio (GitHub)
 
-Crea un repositorio público en [GitHub.com](https://github.com) con la siguiente estructura exacta:
+Crea un repositorio público en [GitHub.com](https://github.com) con la siguiente estructura:
 
 \`\`\`text
 📁 mi-pack-misiones/
@@ -54,28 +54,21 @@ Crea un repositorio público en [GitHub.com](https://github.com) con la siguient
         ├── 📄 NO ESCAPE_EN.pdf
         ├── 📄 TOTAL CONQUEST_ES.pdf
         ├── 📄 TOTAL CONQUEST_EN.pdf
-        ├── 📄 TAKE & HOLD_ES.pdf
-        ├── 📄 TAKE & HOLD_EN.pdf
-        ├── 📄 CLASH OF CHAMPIONS_ES.pdf
-        ├── 📄 CLASH OF CHAMPIONS_EN.pdf
-        ├── 📄 CORNERED_ES.pdf
-        ├── 📄 CORNERED_EN.pdf
-        ├── 📄 DUEL OF WITS_ES.pdf
-        └── 📄 DUEL OF WITS_EN.pdf
+        ├── ... (resto de misiones 2v2)
 \`\`\`
 
-> 💡 **Regla fundamental:**
+> 💡 **Regla fundamental de carpetas:**
 > * Los PDFs de las misiones individuales (1v1) se colocan sueltos dentro de \`pdfs/\`.
-> * Los PDFs de las misiones por parejas (2vs2) se colocan dentro de \`pdfs/2vs2/\`.
+> * Los PDFs de las misiones por parejas (2vs2) se colocan dentro de \`pdfs/2vs2/\` (en minúsculas exactas).
 
 ---
 
 ### 🏷️ Paso 1.2: Tabla Oficial de Claves de Misión
 
-El motor de La Cuchara de Lobelia reconoce exactamente las siguientes claves en el JSON:
+El motor de La Cuchara de Lobelia reconoce las siguientes claves estándar para vincular los PDFs:
 
 #### ⚔️ Misiones 1 vs 1 (24 Escenarios en \`pdfs/\`):
-| Clave de Misión en JSON | Nombre Archivo Español (\`fileEs\`) | Nombre Archivo Inglés (\`fileEn\`) |
+| Clave de Misión en JSON | Archivo Español (\`fileEs\`) | Archivo Inglés (\`fileEn\`) |
 | :--- | :--- | :--- |
 | \`"Domination"\` | \`DOMINATION_ES.pdf\` | \`DOMINATION_EN.pdf\` |
 | \`"To the Death!"\` | \`TO THE DEATH!_ES.pdf\` | \`TO THE DEATH!_EN.pdf\` |
@@ -103,7 +96,7 @@ El motor de La Cuchara de Lobelia reconoce exactamente las siguientes claves en 
 | \`"Convergence"\` | \`CONVERGENCE_ES.pdf\` | \`CONVERGENCE_EN.pdf\` |
 
 #### 🛡️ Misiones 2 vs 2 (6 Escenarios en \`pdfs/2vs2/\`):
-| Clave de Misión en JSON | Nombre Archivo Español (\`fileEs\`) | Nombre Archivo Inglés (\`fileEn\`) |
+| Clave de Misión en JSON | Archivo Español (\`fileEs\`) | Archivo Inglés (\`fileEn\`) |
 | :--- | :--- | :--- |
 | \`"No Escape"\` | \`2vs2/NO ESCAPE_ES.pdf\` | \`2vs2/NO ESCAPE_EN.pdf\` |
 | \`"Total Conquest"\` | \`2vs2/TOTAL CONQUEST_ES.pdf\` | \`2vs2/TOTAL CONQUEST_EN.pdf\` |
@@ -116,18 +109,14 @@ El motor de La Cuchara de Lobelia reconoce exactamente las siguientes claves en 
 
 ### 🌐 Cómo funciona el Soporte Multilenguaje (ES / EN)
 
-El visor de misiones de **La Cuchara de Lobelia** cuenta con conmutación dinámica de idioma en tiempo real:
-* **\`fileEs\`**: Archivo PDF traducido al español (ej: \`"DOMINATION_ES.pdf"\` o \`"2vs2/NO ESCAPE_ES.pdf"\`).
-* **\`fileEn\`**: Archivo PDF en inglés oficial (ej: \`"DOMINATION_EN.pdf"\` o \`"2vs2/NO ESCAPE_EN.pdf"\`).
-
-**Comportamiento del motor:**
-1. Si el jugador tiene la app en Español, el visor abre automáticamente \`fileEs\`.
-2. Si el jugador tiene la app en Inglés (o pulsa la bandera 🇬🇧 en la barra del visor), el motor conmuta automáticamente a \`fileEn\`.
-3. Si un creador solo dispone de PDFs en un solo idioma, puede especificar el mismo archivo en ambos campos (\`fileEs\` y \`fileEn\`), o usar la clave unificada \`"file": "DOMINATION.pdf"\`.
+El visor de misiones de **La Cuchara de Lobelia** conmuta el idioma en tiempo real:
+* **\`fileEs\`**: Archivo PDF traducido al español.
+* **\`fileEn\`**: Archivo PDF en inglés.
+* **\`displayInfo\`**: Diccionario opcional para traducir los títulos mostrados en la interfaz (ej: \`"Domination": { "es": "Dominación", "en": "Domination" }\`). Si no se incluye, la app muestra la clave en texto plano.
 
 ---
 
-### 📄 Paso 1.3: Plantilla del Archivo \`mod-misiones.json\`
+### 📄 Paso 1.3: Plantilla Completa del Archivo \`mod-misiones.json\`
 
 \`\`\`json
 {
@@ -142,6 +131,26 @@ El visor de misiones de **La Cuchara de Lobelia** cuenta con conmutación dinám
   "tags": ["misiones", "mapas", "escenarios", "torneo"],
   "missionPdfs": {
     "baseUrl": "https://raw.githubusercontent.com/TU_USUARIO/TU_REPOSITORIO/main/pdfs/",
+    "displayInfo": {
+      "Domination": { "es": "Dominación", "en": "Domination" },
+      "To the Death!": { "es": "¡Hasta la Muerte!", "en": "To the Death!" },
+      "Hold Ground": { "es": "Mantener la Posición", "en": "Hold Ground" },
+      "Destroy the Supplies": { "es": "Destruir los Suministros", "en": "Destroy the Supplies" }
+    },
+    "pools1v1": [
+      {
+        "name": { "es": "Pool 1: Control de Objetivos", "en": "Pool 1: Objective Control" },
+        "items": ["Domination", "Capture & Control", "Breakthrough", "Reconnoitre"]
+      },
+      {
+        "name": { "es": "Pool 2: Maelstrom y Despliegue Secreto", "en": "Pool 2: Maelstrom & Secret Deployment" },
+        "items": ["Hold Ground", "Heirloom of Ages Past", "Divide & Conquer", "Command the Battlefield"]
+      },
+      {
+        "name": { "es": "Pool 3: Guerra Total y Bajas", "en": "Pool 3: Total War & Casualties" },
+        "items": ["To the Death!", "Lords of Battle", "Contest of Champions", "Assassination"]
+      }
+    ],
     "missions1v1": {
       "Domination": { "fileEs": "DOMINATION_ES.pdf", "fileEn": "DOMINATION_EN.pdf" },
       "To the Death!": { "fileEs": "TO THE DEATH!_ES.pdf", "fileEn": "TO THE DEATH!_EN.pdf" },
@@ -207,7 +216,7 @@ El archivo contiene el array \`rulesKnowledge\`. Cada entrada representa un bloq
     {
       "id": "combate_combates_multiples",
       "title": "Combates Múltiples y División de Ataques",
-      "category": "Fase de Combate",
+      "category": "Reglamento Principal",
       "page": "Pág. 44-46",
       "book": "Manual de Reglas",
       "summary": "Resolución de combates donde intervienen varias miniaturas en peana con peana.",
@@ -219,18 +228,14 @@ El archivo contiene el array \`rulesKnowledge\`. Cada entrada representa un bloq
       ]
     },
     {
-      "id": "acciones_heroicas_combate",
-      "title": "Combate Heroico (Heroic Combat)",
-      "category": "Acciones Heroicas",
-      "page": "Pág. 68",
-      "book": "Manual de Reglas",
-      "summary": "Permite a un Héroe y miniaturas aliadas trabadas mover y trabar de nuevo si eliminan a todos los enemigos en su combate.",
-      "fullText": "Un Héroe puede declarar un Combate Heroico al inicio de la Fase de Combate gastando 1 punto de Poder. Ese combate se resuelve en primer lugar. Si todas las miniaturas enemigas en ese combate resultan eliminadas, el Héroe y las miniaturas aliadas que participaron en él pueden realizar un movimiento inmediato de hasta su distancia máxima de Movimiento...",
-      "tags": ["poder", "combate heroico", "fase de combate", "heroe", "movimiento"],
-      "faqs": [
-        "¿Puede el héroe trabar a nuevos enemigos con el movimiento adicional? Sí, e incluso trabar a miniaturas que no estaban previamente en combate.",
-        "¿Se pueden lanzar proyectiles durante el movimiento de Combate Heroico? No, este movimiento es exclusivamente para trabar o recolocarse."
-      ]
+      "id": "faqs_oficiales_mayo_2026",
+      "title": "Aclaración sobre Movimiento de Caballería en Terreno Difícil",
+      "category": "FAQ & Erratas",
+      "page": "Pág. 3",
+      "book": "Designer's Commentary",
+      "summary": "Aclaración oficial sobre si los caballos sufren penalización al cruzar vallas.",
+      "fullText": "Pregunta: ¿Las monturas deben chequear para saltar obstáculos bajos? Respuesta: Sí, cualquier obstáculo mayor a 1/2 pulgada requiere tirada de Salto.",
+      "tags": ["faq", "errata", "caballeria", "terreno", "salto"]
     }
   ]
 }
@@ -238,28 +243,37 @@ El archivo contiene el array \`rulesKnowledge\`. Cada entrada representa un bloq
 
 ---
 
-### ✍️ Paso 2.2: Consejos de Redacción para que la IA responda a la perfección
+### ✍️ Paso 2.2: Categorías y Consejos de Redacción para la IA
 
-1. **Citas y Fuentes Claras:** Rellena siempre \`page\` (ej: \`"Pág. 45"\`) y \`book\` (ej: \`"Manual de Reglas"\`). La IA usará estos datos para responder diciendo: *"Según el Manual de Reglas (Pág. 45)..."*.
-2. **Campo \`tags\` (Palabras Clave):** Añade sinónimos y términos habituales de búsqueda en mesa (ej: \`["lanza", "apoyo", "monstruo", "arrollar", "derribado"]\`).
-3. **Array \`faqs\`:** Escribe las dudas más polémicas o frecuentes que suelen surgir en torneos con su respuesta inequívoca. La IA consultará directamente este apartado para dar veredictos rápidos e indiscutibles.
+1. **Categorías Estándar Recomendadas (\`category\`):**
+   * **\`"Reglamento Principal"\`**: Para reglas núcleo (Movimiento, Disparo, Combate, Magia, Acciones Heroicas).
+   * **\`"FAQ & Erratas"\`**: Para aclaraciones de torneos y comentarios oficiales de diseñadores.
+   * **\`"Suplementos"\`**: Para reglas temáticas o campañas.
+   * **\`"Perfiles de Ejército"\`**: Para miniaturas y reglas especiales de facción.
+2. **Citas Claras:** Rellena siempre \`page\` (ej: \`"Pág. 45"\`) y \`book\` (ej: \`"Manual de Reglas"\`). La IA citará estas fuentes textualmente.
+3. **Campo \`tags\` (Palabras Clave):** Añade sinónimos habituales (ej: \`["lanza", "apoyo", "monstruo", "arrollar", "derribado"]\`).
+
+---
+
+## ⚠️ CHECKLIST Y ERRORES CRÍTICOS A EVITAR
+
+1. **URL Base Absoluta:** \`baseUrl\` DEBE ser la URL pública completa de GitHub Raw (ej: \`"https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/pdfs/"\`). Si pones una ruta local como \`"pdfs/"\`, fallará la carga online.
+2. **Mayúsculas en Carpetas:** En GitHub, \`pdfs/2vs2/\` debe estar escrito exactamente en minúsculas.
+3. **Codificación UTF-8:** Guarda tus archivos JSON en formato **UTF-8 sin BOM**.
+4. **Validación Previa:** Antes de compartir tu enlace, abre la pestaña **\`📖 Guía & Validador\`** en La Cuchara de Lobelia y comprueba que el validador da luz verde ✅.
 
 ---
 
 # 🌐 CÓMO PUBLICAR TU MOD EN EL TALLER COMUNITARIO
 
-Una vez que tengas tu archivo \`.json\` subido a tu GitHub público:
-
-1. Entra en **La Cuchara de Lobelia** ➔ Pestaña **Mods**.
-2. Pulsa en **\`📤 Publicar Mi Mod (URL)\`**.
-3. Pega el enlace directo a tu archivo (ej: \`https://raw.githubusercontent.com/tu-usuario/tu-repo/main/mod.json\`).
-4. Pulsa **\`🔍 Probar\`**: La app comprobará el archivo y rellenará el nombre y las opciones automáticamente.
-5. Haz clic en **\`Publicar en el Taller\`**.
-
-👉 **¡Listo!** A partir de ese momento, cualquier jugador del mundo podrá encontrar tu mod en el buscador, instalarlo con 1 clic en su móvil y dejarte reseñas de 5 estrellas ⭐.
+1. Sube tu archivo \`.json\` y la carpeta \`pdfs/\` a tu repositorio público de GitHub.
+2. Entra en **La Cuchara de Lobelia** ➔ Pestaña **Mods**.
+3. Pulsa en **\`📤 Publicar Mi Mod (URL)\`**.
+4. Pega el enlace directo a tu archivo (ej: \`https://raw.githubusercontent.com/tu-usuario/tu-repo/main/mod.json\`).
+5. Pulsa **\`🔍 Probar\`** y luego haz clic en **\`Publicar en el Taller\`**.
 `;
 
-// ── PLANTILLAS DESCARGABLES MINIMALISTAS Y ACTUALIZADAS ───────────────────────
+// ── PLANTILLAS COMPLETAS DESCARGABLES ─────────────────────────────────────────
 
 export const TEMPLATE_MOD_1_MISSIONS = {
   modId: "pack-misiones-ejemplo",
@@ -268,11 +282,31 @@ export const TEMPLATE_MOD_1_MISSIONS = {
   modAuthor: "Tu Nombre o Club",
   gameSystem: "MESBG",
   schemaVersion: "1.0",
-  description: "Plantilla para 24 escenarios 1v1 y 6 escenarios 2v2 con soporte para visor PDF online y descarga offline.",
+  description: "Plantilla con las 24 misiones 1v1 y 6 misiones 2v2 organizadas por Pools de Torneo con títulos traducidos y soporte PDF online/offline.",
   capabilities: ["missions"],
   tags: ["misiones", "escenarios", "mapas", "torneo"],
   missionPdfs: {
     baseUrl: "https://raw.githubusercontent.com/TU_USUARIO/TU_REPOSITORIO/main/pdfs/",
+    displayInfo: {
+      "Domination": { "es": "Dominación", "en": "Domination" },
+      "To the Death!": { "es": "¡Hasta la Muerte!", "en": "To the Death!" },
+      "Hold Ground": { "es": "Mantener la Posición", "en": "Hold Ground" },
+      "Destroy the Supplies": { "es": "Destruir los Suministros", "en": "Destroy the Supplies" }
+    },
+    pools1v1: [
+      {
+        "name": { "es": "Pool 1: Control de Objetivos", "en": "Pool 1: Objective Control" },
+        "items": ["Domination", "Capture & Control", "Breakthrough", "Reconnoitre"]
+      },
+      {
+        "name": { "es": "Pool 2: Maelstrom y Posiciones", "en": "Pool 2: Maelstrom & Positions" },
+        "items": ["Hold Ground", "Heirloom of Ages Past", "Divide & Conquer", "Command the Battlefield"]
+      },
+      {
+        "name": { "es": "Pool 3: Guerra Total y Bajas", "en": "Pool 3: Total War & Casualties" },
+        "items": ["To the Death!", "Lords of Battle", "Contest of Champions", "Assassination"]
+      }
+    ],
     missions1v1: {
       "Domination": { "fileEs": "DOMINATION_ES.pdf", "fileEn": "DOMINATION_EN.pdf" },
       "To the Death!": { "fileEs": "TO THE DEATH!_ES.pdf", "fileEn": "TO THE DEATH!_EN.pdf" },
@@ -322,17 +356,27 @@ export const TEMPLATE_MOD_2_RULES_AI = {
   tags: ["ia", "reglas", "faqs", "arbitro"],
   rulesKnowledge: [
     {
-      id: "ejemplo_combate_multiple",
-      title: "Combates Múltiples y Distribución de Ataques",
-      category: "Fase de Combate",
-      page: "Pág. 44-46",
-      book: "Manual de Reglas",
-      summary: "Resolución de combates donde intervienen varias miniaturas en peana con peana.",
-      fullText: "Cuando varias miniaturas están trabadas en un mismo combate, el bando que obtenga el resultado más alto en el Duelo resulta vencedor...",
-      tags: ["combate", "duelo", "ataques", "herir", "apoyo"],
-      faqs: [
+      "id": "ejemplo_combate_multiple",
+      "title": "Combates Múltiples y Distribución de Ataques",
+      "category": "Reglamento Principal",
+      "page": "Pág. 44-46",
+      "book": "Manual de Reglas",
+      "summary": "Resolución de combates donde intervienen varias miniaturas en peana con peana.",
+      "fullText": "Cuando varias miniaturas están trabadas en un mismo combate, el bando que obtenga el resultado más alto en el Duelo resulta vencedor...",
+      "tags": ["combate", "duelo", "ataques", "herir", "apoyo"],
+      "faqs": [
         "¿Puede una miniatura que apoya con lanza repartir sus ataques a un objetivo diferente? Sí, siempre que esté trabada legalmente a través de la miniatura frontal."
       ]
+    },
+    {
+      "id": "ejemplo_faq_oficial",
+      "title": "FAQ sobre Cargas de Caballería",
+      "category": "FAQ & Erratas",
+      "page": "Pág. 2",
+      "book": "Official Errata",
+      "summary": "Aclaración sobre si los bonos de carga aplican en terreno difícil.",
+      "fullText": "Las miniaturas de Caballería que cargan a través de terreno difícil no obtienen el ataque adicional por carga.",
+      "tags": ["faq", "caballeria", "carga", "terreno dificil"]
     }
   ]
 };

@@ -20,7 +20,12 @@ export default function Missions({ lang, translations, setLang, setView }) {
   }, []);
 
   const pdfConfig = missionsMod?.missionPdfs || null;
-  const pools1v1 = pdfConfig?.pools1v1 || [];
+  const rawMissions1v1 = pdfConfig?.missions1v1 ? Object.keys(pdfConfig.missions1v1) : [];
+  const pools1v1 = (Array.isArray(pdfConfig?.pools1v1) && pdfConfig.pools1v1.length > 0)
+    ? pdfConfig.pools1v1
+    : (rawMissions1v1.length > 0
+        ? [{ name: { es: 'Misiones Disponibles', en: 'Available Missions' }, items: rawMissions1v1 }]
+        : []);
   const missions2v2 = pdfConfig?.missions2v2List || (pdfConfig?.missions2v2 ? Object.keys(pdfConfig.missions2v2) : []);
   const displayInfo = pdfConfig?.displayInfo || {};
   const scenarioFaqs = pdfConfig?.faqs || {};
