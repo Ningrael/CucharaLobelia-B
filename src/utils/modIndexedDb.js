@@ -207,6 +207,106 @@ export async function deleteModFromIndexedDb(modId) {
 }
 
 /**
+ * Guarda un archivo binario (Blob/ArrayBuffer de PDF) en IndexedDB
+ */
+export async function saveBlobToDb(blobKey, blobData, mimeType = 'application/pdf') {
+  const db = await openModDb();
+  if (!db) return false;
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction('mod_blobs', 'readwrite');
+      const store = tx.objectStore('mod_blobs');
+      const item = {
+        blobKey,
+        data: blobData,
+        mimeType,
+        savedAt: new Date().toISOString()
+      };
+      const req = store.put(item);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+    } catch (_) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Obtiene un archivo binario desde IndexedDB por su blobKey
+ */
+export async function getBlobFromDb(blobKey) {
+  if (!blobKey) return null;
+  const db = await openModDb();
+  if (!db) return null;
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction('mod_blobs', 'readonly');
+      const store = tx.objectStore('mod_blobs');
+      const req = store.get(blobKey);
+      req.onsuccess = () => {
+        resolve(req.result ? req.result.data : null);
+      };
+      req.onerror = () => resolve(null);
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Comprueba si un Blob ya está almacenado localmente
+ */
+export async function hasBlobInDb(blobKey) {
+  if (!blobKey) return false;
+  const db = await openModDb();
+  if (!db) return false;
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction('mod_blobs', 'readonly');
+      const store = tx.objectStore('mod_blobs');
+      const req = store.getKey(blobKey);
+      req.onsuccess = () => resolve(!!req.result);
+      req.onerror = () => resolve(false);
+    } catch (_) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Elimina todos los Blobs asociados a un mod (blobKey comienza por "modId:")
+ */
+export async function deleteBlobsForMod(modId) {
+  if (!modId) return false;
+  const db = await openModDb();
+  if (!db) return false;
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction('mod_blobs', 'readwrite');
+      const store = tx.objectStore('mod_blobs');
+      const req = store.getAllKeys();
+      req.onsuccess = () => {
+        const keys = req.result || [];
+        const prefix = `${modId}:`;
+        keys.forEach(k => {
+          if (typeof k === 'string' && k.startsWith(prefix)) {
+            store.delete(k);
+          }
+        });
+        resolve(true);
+      };
+      req.onerror = () => resolve(false);
+    } catch (_) {
+      resolve(false);
+    }
+  });
+}
+
+/**
  * Guarda una asignación de capa activa en IndexedDB
  */
 export async function setDbActiveLayer(layer, modId) {
@@ -246,3 +346,4 @@ export async function getDbActiveLayers() {
     }
   });
 }
+

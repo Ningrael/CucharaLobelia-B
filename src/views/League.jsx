@@ -1,5 +1,8 @@
 // src/views/League.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import QRCode from 'qrcode';
+import logoHorizontalImg from '../assets/logo-horizontal.png';
+import marcaSimboloImg from '../assets/marca-simbolo.png';
 import { db } from '../utils/firebase';
 import {
   LIGHT_FACTIONS,
@@ -379,7 +382,7 @@ const generateFixture = (plist, totalRounds, prioritizeAlignment) => {
 
 // --- COMPONENTE PRINCIPAL ---
 
-export default function League({ lang, translations, user, profile, isAdmin: isGlobalAdmin, authLoading, onOpenAuthModal, onStartChat }) {
+export default function League({ lang, translations, user, profile, isAdmin: isGlobalAdmin, authLoading, onOpenAuthModal, onStartChat, initialLeagueId }) {
   const t = translations[lang];
 
   // Navegación
@@ -498,6 +501,314 @@ export default function League({ lang, translations, user, profile, isAdmin: isG
 
   const [pendingRegisterLeagueId, setPendingRegisterLeagueId] = useState(null);
   const [pendingCreateLeague, setPendingCreateLeague] = useState(false);
+
+  // Modal de Compartir Liga (QR y Cartel Oficial de WhatsApp)
+  const [isShareLeagueModalOpen, setIsShareLeagueModalOpen] = useState(false);
+  const [shareLeagueData, setShareLeagueData] = useState(null);
+  const [copiedLinkToast, setCopiedLinkToast] = useState(false);
+  const [copiedImageToast, setCopiedImageToast] = useState(false);
+  const [copiedTextToast, setCopiedTextToast] = useState(false);
+  const qrCanvasRef = useRef(null);
+
+  const getShareUrl = (leagueId) => {
+    if (!leagueId) return '';
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return `https://ningrael.github.io/CucharaLobelia-B/?league=${leagueId}`;
+    }
+    return `${window.location.origin}${window.location.pathname}?league=${leagueId}`;
+  };
+
+  const handleOpenShareModal = (leagueId, leagueObj) => {
+    if (!leagueId || !leagueObj) return;
+    setShareLeagueData({
+      id: leagueId,
+      name: leagueObj.name || 'Liga de MESBG',
+      location: leagueObj.location || '',
+      deadline: leagueObj.registrationDeadline || leagueObj.deadline || '',
+      description: leagueObj.description || '',
+      rulesLink: leagueObj.rulesLink || ''
+    });
+    setIsShareLeagueModalOpen(true);
+  };
+
+  // Generador del Cartel Oficial en Canvas
+  useEffect(() => {
+    if (!isShareLeagueModalOpen || !shareLeagueData || !qrCanvasRef.current) return;
+
+    let isMounted = true;
+    const canvas = qrCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const width = 800;
+    const height = 860;
+    canvas.width = width;
+    canvas.height = height;
+
+    const renderPoster = async () => {
+      // 1. Fondo "Noche de Taberna"
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+      bgGrad.addColorStop(0, '#06110a');
+      bgGrad.addColorStop(0.3, '#0e2316');
+      bgGrad.addColorStop(0.7, '#102418');
+      bgGrad.addColorStop(1, '#050c07');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // 2. Doble marco dorado con esquinas en diamante
+      ctx.save();
+      ctx.strokeStyle = 'rgba(203, 161, 53, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(20, 20, width - 40, height - 40);
+
+      ctx.strokeStyle = 'rgba(203, 161, 53, 0.2)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(28, 28, width - 56, height - 56);
+
+      const corners = [
+        [20, 20], [width - 20, 20], [20, height - 20], [width - 20, height - 20]
+      ];
+      ctx.fillStyle = '#CBA135';
+      corners.forEach(([cx, cy]) => {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 7);
+        ctx.lineTo(cx + 7, cy);
+        ctx.lineTo(cx, cy + 7);
+        ctx.lineTo(cx - 7, cy);
+        ctx.closePath();
+        ctx.fill();
+      });
+      ctx.restore();
+
+      // 3. Logotipo de la App protagonista en la cabecera
+      try {
+        const logo = new Image();
+        logo.src = logoHorizontalImg;
+        await new Promise((res) => {
+          if (logo.complete) res();
+          logo.onload = res;
+          logo.onerror = res;
+        });
+        if (logo.width > 0 && isMounted) {
+          const logoW = 340;
+          const logoH = (logo.height / logo.width) * logoW;
+          ctx.drawImage(logo, (width - logoW) / 2, 42, logoW, logoH);
+        }
+      } catch (_) {
+        ctx.fillStyle = '#F3E8CE';
+        ctx.font = 'bold 32px Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('LA CUCHARA DE LOBELIA', width / 2, 95);
+      }
+
+      // Separador central
+      const sepY = 158;
+      const sepGrad = ctx.createLinearGradient(120, sepY, width - 120, sepY);
+      sepGrad.addColorStop(0, 'rgba(203, 161, 53, 0)');
+      sepGrad.addColorStop(0.5, 'rgba(203, 161, 53, 0.8)');
+      sepGrad.addColorStop(1, 'rgba(203, 161, 53, 0)');
+      ctx.strokeStyle = sepGrad;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(120, sepY);
+      ctx.lineTo(width - 120, sepY);
+      ctx.stroke();
+
+      ctx.fillStyle = '#CBA135';
+      ctx.beginPath();
+      ctx.moveTo(width / 2, sepY - 5);
+      ctx.lineTo(width / 2 + 5, sepY);
+      ctx.lineTo(width / 2, sepY + 5);
+      ctx.lineTo(width / 2 - 5, sepY);
+      ctx.closePath();
+      ctx.fill();
+
+      // 4. Caja de Datos de la Liga
+      const cardX = 45;
+      const cardY = 176;
+      const cardW = width - 90;
+      const cardH = 198;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      ctx.roundRect(cardX, cardY, cardW, cardH, 14);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(203, 161, 53, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Título de la Liga
+      ctx.fillStyle = '#F3E8CE';
+      ctx.font = 'bold 30px Georgia, serif';
+      ctx.textAlign = 'center';
+      const leagueTitle = (shareLeagueData.name || 'LIGA DE MESBG').toUpperCase();
+      ctx.fillText(leagueTitle, width / 2, cardY + 44);
+
+      // Línea divisoria bajo el título
+      ctx.strokeStyle = 'rgba(203, 161, 53, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(width / 2 - 130, cardY + 60);
+      ctx.lineTo(width / 2 + 130, cardY + 60);
+      ctx.stroke();
+
+      // Info rows
+      ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      
+      // Ubicación
+      ctx.fillStyle = '#CBA135';
+      const locText = shareLeagueData.location ? `📍 Lugar: ${shareLeagueData.location}` : '📍 Modalidad: Presencial / Online';
+      ctx.fillText(locText, width / 2, cardY + 95);
+
+      // Fecha
+      ctx.fillStyle = '#9CBFA0';
+      const dateText = shareLeagueData.deadline ? `📅 Cierre de Inscripción: ${shareLeagueData.deadline}` : '📅 Inscripción Abierta';
+      ctx.fillText(dateText, width / 2, cardY + 128);
+
+      // Descripción
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'italic 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const desc = shareLeagueData.description || 'Prepara tu lista y compite en el ranking oficial.';
+      const cleanDesc = desc.length > 70 ? desc.slice(0, 67) + '...' : desc;
+      ctx.fillText(`«${cleanDesc}»`, width / 2, cardY + 166);
+
+      // 5. Marco del Código QR
+      const qrBoxSize = 350;
+      const qrBoxX = (width - qrBoxSize) / 2;
+      const qrBoxY = 398;
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetY = 6;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 18);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.strokeStyle = '#CBA135';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Renderizar QR en canvas temporal
+      const shareUrl = getShareUrl(shareLeagueData.id);
+      const tempCanvas = document.createElement('canvas');
+      await QRCode.toCanvas(tempCanvas, shareUrl, {
+        width: 310,
+        margin: 1,
+        color: {
+          dark: '#07130C',
+          light: '#FFFFFF'
+        }
+      });
+      if (isMounted) {
+        ctx.drawImage(tempCanvas, qrBoxX + 20, qrBoxY + 20, 310, 310);
+      }
+
+      // 6. Call to Action directo y limpio
+      ctx.fillStyle = '#F3E8CE';
+      ctx.font = 'bold 22px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('📷 ESCANEA EL CÓDIGO QR PARA ENTRAR', width / 2, 798);
+    };
+
+    renderPoster();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isShareLeagueModalOpen, shareLeagueData]);
+
+  const handleDownloadPoster = () => {
+    if (!qrCanvasRef.current || !shareLeagueData) return;
+    const pngUrl = qrCanvasRef.current.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = pngUrl;
+    a.download = `Cartel_Liga_${shareLeagueData.name.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleCopyCardImage = async () => {
+    if (!qrCanvasRef.current) return;
+    try {
+      const blob = await new Promise(res => qrCanvasRef.current.toBlob(res, 'image/png'));
+      if (navigator.clipboard && navigator.clipboard.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        setCopiedImageToast(true);
+        setTimeout(() => setCopiedImageToast(false), 2500);
+      } else {
+        handleDownloadPoster();
+      }
+    } catch (err) {
+      console.warn('Clipboard write error:', err);
+      handleDownloadPoster();
+    }
+  };
+
+  const handleShareWhatsApp = async () => {
+    if (!shareLeagueData || !qrCanvasRef.current) return;
+    const shareUrl = getShareUrl(shareLeagueData.id);
+    const text = `🏆 *${shareLeagueData.name}*\n` +
+      `⚔️ *La Cuchara de Lobelia — MESBG*\n\n` +
+      (shareLeagueData.location ? `📍 *Lugar:* ${shareLeagueData.location}\n` : '') +
+      (shareLeagueData.deadline ? `📅 *Inscripción:* Cierre ${shareLeagueData.deadline}\n` : '📅 *Inscripción:* Abierta\n') +
+      (shareLeagueData.description ? `\n📝 ${shareLeagueData.description}\n` : '') +
+      (shareLeagueData.rulesLink ? `📜 *Reglamento:* ${shareLeagueData.rulesLink}\n` : '') +
+      `\n👉 *Inscripción directa:*\n${shareUrl}`;
+
+    // Si el navegador soporta compartir archivos nativamente (Móvil Android / iOS):
+    try {
+      const blob = await new Promise(res => qrCanvasRef.current.toBlob(res, 'image/png'));
+      const file = new File([blob], `Cartel_Liga_${shareLeagueData.name.replace(/[^a-zA-Z0-9]/g, '_')}.png`, { type: 'image/png' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: shareLeagueData.name,
+          text: text,
+          files: [file]
+        });
+        return;
+      }
+    } catch (_) {}
+
+    // En Escritorio / WhatsApp Web: copiar texto formateado al portapapeles y abrir WhatsApp
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedLinkToast(true);
+      setTimeout(() => setCopiedLinkToast(false), 3000);
+    } catch (_) {}
+
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleCopyShareText = async () => {
+    if (!shareLeagueData) return;
+    const shareUrl = getShareUrl(shareLeagueData.id);
+    const text = `🏆 *${shareLeagueData.name}*\n` +
+      `⚔️ *La Cuchara de Lobelia — MESBG*\n\n` +
+      (shareLeagueData.location ? `📍 *Lugar:* ${shareLeagueData.location}\n` : '') +
+      (shareLeagueData.deadline ? `📅 *Inscripción:* Cierre ${shareLeagueData.deadline}\n` : '📅 *Inscripción:* Abierta\n') +
+      (shareLeagueData.description ? `\n📝 ${shareLeagueData.description}\n` : '') +
+      (shareLeagueData.rulesLink ? `📜 *Reglamento:* ${shareLeagueData.rulesLink}\n` : '') +
+      `\n👉 *Inscripción directa:*\n${shareUrl}`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedTextToast(true);
+      setTimeout(() => setCopiedTextToast(false), 2500);
+    } catch (_) {}
+  };
+
+  const handleCopyShareLink = () => {
+    if (!shareLeagueData) return;
+    const shareUrl = getShareUrl(shareLeagueData.id);
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedLinkToast(true);
+    setTimeout(() => setCopiedLinkToast(false), 2500);
+  };
 
   // Modal Perfil de Jugador y Enviar Mensaje
   const [selectedPlayerProfile, setSelectedPlayerProfile] = useState(null);
@@ -979,19 +1290,18 @@ export default function League({ lang, translations, user, profile, isAdmin: isG
   }, [user, selectedLeagueId]);
 
   useEffect(() => {
-    if (user) {
-      if (pendingRegisterLeagueId) {
-        setSelectedLeagueId(pendingRegisterLeagueId);
+    if (initialLeagueId && leaguesList[initialLeagueId]) {
+      setSelectedLeagueId(initialLeagueId);
+      const isEnrolled = !!(profile?.leagues?.[initialLeagueId]);
+      const leagueData = leaguesList[initialLeagueId];
+      const isRegistrationOpen = leagueData?.status === 'registration';
+      if (!isEnrolled && isRegistrationOpen) {
         setJoinAlignment('luz');
         setJoinFaction('');
         setIsJoinLeagueModalOpen(true);
-        setPendingRegisterLeagueId(null);
-      } else if (pendingCreateLeague) {
-        setIsCreateLeagueModalOpen(true);
-        setPendingCreateLeague(false);
       }
     }
-  }, [user, pendingRegisterLeagueId, pendingCreateLeague]);
+  }, [initialLeagueId, leaguesList, profile]);
 
   // Computar isAdmin según permisos globales o si el usuario es el creador de la liga seleccionada
   const isAdmin = useMemo(() => {
@@ -2657,6 +2967,25 @@ export default function League({ lang, translations, user, profile, isAdmin: isG
                       })()}
 
                       <button 
+                        className="btn btn-small" 
+                        onClick={() => handleOpenShareModal(id, league)}
+                        style={{ 
+                          minHeight: '34px', 
+                          padding: '0 10px', 
+                          background: 'rgba(203, 161, 53, 0.12)', 
+                          border: '1px solid rgba(203, 161, 53, 0.4)',
+                          color: 'var(--gold-primary)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        title={lang === 'es' ? 'Compartir liga con QR y WhatsApp' : 'Share league with QR and WhatsApp'}
+                      >
+                        <span>🔗</span>
+                      </button>
+
+                      <button 
                         className="btn btn-primary btn-small" 
                         onClick={() => {
                           setSelectedLeagueId(id);
@@ -2768,6 +3097,46 @@ export default function League({ lang, translations, user, profile, isAdmin: isG
           onClose={() => setIsJoinLeagueModalOpen(false)}
           title={lang === 'es' ? "Inscripción a la Liga" : "Register to League"}
         >
+          {selectedLeagueId && leaguesList[selectedLeagueId] && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(203, 161, 53, 0.12) 0%, rgba(0,0,0,0.5) 100%)',
+              border: '1px solid rgba(203, 161, 53, 0.4)',
+              borderRadius: '10px',
+              padding: '14px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '1.3rem' }}>🏆</span>
+                <h4 style={{ margin: 0, color: 'var(--gold-primary)', fontSize: '1.05rem', fontFamily: 'var(--font-title)' }}>
+                  {leaguesList[selectedLeagueId].name}
+                </h4>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                {leaguesList[selectedLeagueId].location && (
+                  <span>📍 <strong>{leaguesList[selectedLeagueId].location}</strong></span>
+                )}
+                {leaguesList[selectedLeagueId].deadline && (
+                  <span>📅 Cierre: <strong>{leaguesList[selectedLeagueId].deadline}</strong></span>
+                )}
+              </div>
+              {leaguesList[selectedLeagueId].description && (
+                <p style={{ margin: '0 0 6px 0', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                  {leaguesList[selectedLeagueId].description}
+                </p>
+              )}
+              {leaguesList[selectedLeagueId].rulesLink && (
+                <a
+                  href={leaguesList[selectedLeagueId].rulesLink.startsWith('http') ? leaguesList[selectedLeagueId].rulesLink : `https://${leaguesList[selectedLeagueId].rulesLink}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: '0.75rem', color: 'var(--gold-primary)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  📜 {lang === 'es' ? 'Ver Bases / Reglamento Oficial' : 'View Rules / Guidelines'}
+                </a>
+              )}
+            </div>
+          )}
+
           <form onSubmit={handleJoinLeagueSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -2807,6 +3176,152 @@ export default function League({ lang, translations, user, profile, isAdmin: isG
             </button>
           </form>
         </Modal>
+
+        {/* --- MODAL SHARE: CARTEL OFICIAL DE LIGA (QR & WHATSAPP) --- */}
+        {isShareLeagueModalOpen && shareLeagueData && (
+          <Modal
+            isOpen={true}
+            onClose={() => setIsShareLeagueModalOpen(false)}
+            title={lang === 'es' ? `Cartel Oficial: ${shareLeagueData.name}` : `Official Poster: ${shareLeagueData.name}`}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', textAlign: 'center' }}>
+              
+              {/* Canvas del Cartel Oficial de Convocatoria */}
+              <div style={{
+                width: '100%',
+                maxWidth: '340px',
+                margin: '0 auto',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 10px 35px rgba(0,0,0,0.8)',
+                border: '1px solid rgba(203, 161, 53, 0.45)',
+                background: '#07130C'
+              }}>
+                <canvas 
+                  ref={qrCanvasRef} 
+                  style={{ 
+                    display: 'block', 
+                    width: '100%', 
+                    height: 'auto' 
+                  }} 
+                />
+              </div>
+
+              {/* Botones Principales de Compartición */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={handleShareWhatsApp}
+                  style={{
+                    background: '#25D366',
+                    border: 'none',
+                    color: '#111',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    fontWeight: 'bold',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 10px rgba(37, 211, 102, 0.3)'
+                  }}
+                >
+                  <span>📲</span> {lang === 'es' ? 'Enviar a WhatsApp' : 'Share on WhatsApp'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyCardImage}
+                  style={{
+                    background: copiedImageToast ? '#2ecc71' : 'rgba(203, 161, 53, 0.15)',
+                    border: '1px solid var(--gold-primary)',
+                    color: copiedImageToast ? '#fff' : 'var(--gold-primary)',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    fontWeight: 'bold',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title={lang === 'es' ? 'Copia la imagen para pegarla con Ctrl+V' : 'Copy image to clipboard'}
+                >
+                  <span>🖼️</span> {copiedImageToast ? '✔ Imagen Copiada' : (lang === 'es' ? 'Copiar Imagen' : 'Copy Image')}
+                </button>
+              </div>
+
+              {/* Fila secundaria: Copiar Texto Formateado y Descargar PNG */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={handleCopyShareText}
+                  style={{
+                    background: copiedTextToast ? '#2ecc71' : 'rgba(255,255,255,0.06)',
+                    border: 'var(--border-glass)',
+                    color: copiedTextToast ? '#111' : '#fff',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <span>📝</span> {copiedTextToast ? '✔ Texto Copiado' : (lang === 'es' ? 'Copiar Texto' : 'Copy Text')}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadPoster}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: 'var(--border-glass)',
+                    color: '#fff',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>📥</span> {lang === 'es' ? 'Descargar PNG' : 'Download PNG'}
+                </button>
+              </div>
+
+              {/* Guía visual para WhatsApp Web */}
+              <div style={{ 
+                background: 'rgba(37, 211, 102, 0.08)', 
+                border: '1px solid rgba(37, 211, 102, 0.3)', 
+                borderRadius: '8px', 
+                padding: '10px 12px', 
+                fontSize: '0.74rem', 
+                color: '#e2e8f0', 
+                lineHeight: '1.45', 
+                textAlign: 'left',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <strong style={{ color: '#25D366', display: 'block', marginBottom: '3px' }}>
+                  📌 ¿Cómo enviarlo en 1 solo mensaje en WhatsApp Web?
+                </strong>
+                1. Pulsa <strong>«Copiar Imagen»</strong> y haz <strong>Ctrl + V</strong> en el chat de WhatsApp Web.<br/>
+                2. En la ventana de previsualización, pulsa en <em>"Añade un pie de foto..."</em> y pega el texto con el enlace antes de pulsar Enviar.
+              </div>
+
+            </div>
+          </Modal>
+        )}
 
         <Modal
           isOpen={isConfirmModalOpen}
@@ -2969,10 +3484,28 @@ export default function League({ lang, translations, user, profile, isAdmin: isG
       {/* --- SECCIÓN 0: DETALLES --- */}
       {activeSubTab === 'details' && (
         <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '10px' }}>
+          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <h3 style={{ fontSize: '1.2rem', color: 'var(--gold-primary)', margin: 0 }}>
               {lang === 'es' ? 'Detalles de la Liga' : 'League Details'}
             </h3>
+            <button
+              className="btn btn-small"
+              onClick={() => handleOpenShareModal(selectedLeagueId, configData)}
+              style={{
+                background: 'rgba(203, 161, 53, 0.15)',
+                border: '1px solid var(--gold-primary)',
+                color: 'var(--gold-primary)',
+                padding: '6px 14px',
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              <span>📱</span> {lang === 'es' ? 'Compartir Liga (QR / WhatsApp)' : 'Share League (QR / WhatsApp)'}
+            </button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -4841,6 +5374,46 @@ export default function League({ lang, translations, user, profile, isAdmin: isG
         onClose={() => setIsJoinLeagueModalOpen(false)}
         title={lang === 'es' ? "Inscripción a la Liga" : "Register to League"}
       >
+        {selectedLeagueId && leaguesList[selectedLeagueId] && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(203, 161, 53, 0.12) 0%, rgba(0,0,0,0.5) 100%)',
+            border: '1px solid rgba(203, 161, 53, 0.4)',
+            borderRadius: '10px',
+            padding: '14px',
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <span style={{ fontSize: '1.3rem' }}>🏆</span>
+              <h4 style={{ margin: 0, color: 'var(--gold-primary)', fontSize: '1.05rem', fontFamily: 'var(--font-title)' }}>
+                {leaguesList[selectedLeagueId].name}
+              </h4>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              {leaguesList[selectedLeagueId].location && (
+                <span>📍 <strong>{leaguesList[selectedLeagueId].location}</strong></span>
+              )}
+              {leaguesList[selectedLeagueId].deadline && (
+                <span>📅 Cierre: <strong>{leaguesList[selectedLeagueId].deadline}</strong></span>
+              )}
+            </div>
+            {leaguesList[selectedLeagueId].description && (
+              <p style={{ margin: '0 0 6px 0', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                {leaguesList[selectedLeagueId].description}
+              </p>
+            )}
+            {leaguesList[selectedLeagueId].rulesLink && (
+              <a
+                href={leaguesList[selectedLeagueId].rulesLink.startsWith('http') ? leaguesList[selectedLeagueId].rulesLink : `https://${leaguesList[selectedLeagueId].rulesLink}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: '0.75rem', color: 'var(--gold-primary)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                📜 {lang === 'es' ? 'Ver Bases / Reglamento Oficial' : 'View Rules / Guidelines'}
+              </a>
+            )}
+          </div>
+        )}
+
         <form onSubmit={handleJoinLeagueSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -4880,6 +5453,152 @@ export default function League({ lang, translations, user, profile, isAdmin: isG
           </button>
         </form>
       </Modal>
+
+      {/* --- MODAL SHARE: CARTEL OFICIAL DE LIGA (QR & WHATSAPP) --- */}
+      {isShareLeagueModalOpen && shareLeagueData && (
+        <Modal
+          isOpen={true}
+          onClose={() => setIsShareLeagueModalOpen(false)}
+          title={lang === 'es' ? `Cartel Oficial: ${shareLeagueData.name}` : `Official Poster: ${shareLeagueData.name}`}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', textAlign: 'center' }}>
+            
+            {/* Canvas del Cartel Oficial de Convocatoria */}
+            <div style={{
+              width: '100%',
+              maxWidth: '340px',
+              margin: '0 auto',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 10px 35px rgba(0,0,0,0.8)',
+              border: '1px solid rgba(203, 161, 53, 0.45)',
+              background: '#07130C'
+            }}>
+              <canvas 
+                ref={qrCanvasRef} 
+                style={{ 
+                  display: 'block', 
+                  width: '100%', 
+                  height: 'auto' 
+                }} 
+              />
+            </div>
+
+            {/* Botones Principales de Compartición */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
+              <button
+                type="button"
+                onClick={handleShareWhatsApp}
+                style={{
+                  background: '#25D366',
+                  border: 'none',
+                  color: '#111',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 10px rgba(37, 211, 102, 0.3)'
+                }}
+              >
+                <span>📲</span> {lang === 'es' ? 'Enviar a WhatsApp' : 'Share on WhatsApp'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyCardImage}
+                style={{
+                  background: copiedImageToast ? '#2ecc71' : 'rgba(203, 161, 53, 0.15)',
+                  border: '1px solid var(--gold-primary)',
+                  color: copiedImageToast ? '#fff' : 'var(--gold-primary)',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                title={lang === 'es' ? 'Copia la imagen para pegarla directamente con Ctrl+V en WhatsApp Web o Discord' : 'Copy image to clipboard to paste with Ctrl+V'}
+              >
+                <span>🖼️</span> {copiedImageToast ? '✔ Imagen Copiada' : (lang === 'es' ? 'Copiar Imagen' : 'Copy Image')}
+              </button>
+            </div>
+
+            {/* Fila secundaria: Copiar Texto Formateado y Descargar PNG */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
+              <button
+                type="button"
+                onClick={handleCopyShareText}
+                style={{
+                  background: copiedTextToast ? '#2ecc71' : 'rgba(255,255,255,0.06)',
+                  border: 'var(--border-glass)',
+                  color: copiedTextToast ? '#111' : '#fff',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span>📝</span> {copiedTextToast ? '✔ Texto Copiado' : (lang === 'es' ? 'Copiar Texto' : 'Copy Text')}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadPoster}
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: 'var(--border-glass)',
+                  color: '#fff',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span>📥</span> {lang === 'es' ? 'Descargar PNG' : 'Download PNG'}
+              </button>
+            </div>
+
+            {/* Guía visual para WhatsApp Web */}
+            <div style={{ 
+              background: 'rgba(37, 211, 102, 0.08)', 
+              border: '1px solid rgba(37, 211, 102, 0.3)', 
+              borderRadius: '8px', 
+              padding: '10px 12px', 
+              fontSize: '0.74rem', 
+              color: '#e2e8f0', 
+              lineHeight: '1.45', 
+              textAlign: 'left',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              <strong style={{ color: '#25D366', display: 'block', marginBottom: '3px' }}>
+                📌 ¿Cómo enviarlo en 1 solo mensaje en WhatsApp Web?
+              </strong>
+              1. Pulsa <strong>«Copiar Imagen»</strong> y haz <strong>Ctrl + V</strong> en el chat de WhatsApp Web.<br/>
+              2. En la ventana de previsualización, pulsa en <em>"Añade un pie de foto..."</em> y pega el texto con el enlace antes de pulsar Enviar.
+            </div>
+
+          </div>
+        </Modal>
+      )}
 
       {/* --- MODAL G: AÑADIR JUGADOR MANUALMENTE (ADMIN) --- */}
       <Modal

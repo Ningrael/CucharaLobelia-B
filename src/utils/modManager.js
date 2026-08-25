@@ -1,9 +1,3 @@
-// src/utils/modManager.js
-// ─────────────────────────────────────────────────────────────────────────────
-// Gestor del Sistema de Mods de La Cuchara de Lobelia (Zero-GW IP Engine).
-// Conexión con IndexedDB local para almacenamiento 100% en cliente e instalación 1-Clic.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { db } from './firebase';
 import {
   doc,
@@ -21,7 +15,10 @@ import {
   getAllInstalledModsFromDb,
   deleteModFromIndexedDb,
   setDbActiveLayer,
-  getDbActiveLayers
+  getDbActiveLayers,
+  saveBlobToDb,
+  getBlobFromDb,
+  deleteBlobsForMod
 } from './modIndexedDb';
 
 // ── SCHEMA VERSION & CONSTANTS ────────────────────────────────────────────────
@@ -46,7 +43,13 @@ const REQUIRED_MOD_FIELDS = [
   'schemaVersion'
 ];
 
-// ── CATÁLOGO PÚBLICO DE WORKSHOP (100% DINÁMICO DESDE FIRESTORE) ────────────────
+export function notifyModChange(detail = {}) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('lobelia_mod_changed', { detail }));
+  }
+}
+
+// ── CATÁLOGO PÚBLICO DE WORKSHOP (MOTOR NEUTRAL VACÍO POR DEFECTO) ────────────
 export const PUBLIC_MOD_REGISTRY = [];
 
 // ── SANITIZACIÓN DE SEGURIDAD CONTRA INYECCIONES Y XSS ────────────────────────
@@ -155,11 +158,23 @@ export function validateModSchema(modJson) {
     const m1 = Object.keys(modJson.missionPdfs.missions1v1 || {}).length;
     const m2 = Object.keys(modJson.missionPdfs.missions2v2 || {}).length;
     stats.missions = m1 + m2;
+    if (stats.missions === 0 && (!modJson.missionPdfs.pools1v1 || modJson.missionPdfs.pools1v1.length === 0)) {
+      errors.push('El bloque "missionPdfs" no contiene misiones válidas en "missions1v1", "missions2v2" ni "pools1v1".');
+    }
   }
 
   if (Array.isArray(modJson.rulesKnowledge) && modJson.rulesKnowledge.length > 0) {
     stats.capabilities.push('rules_ai');
     stats.rulesPages = modJson.rulesKnowledge.length;
+    modJson.rulesKnowledge.forEach((rk, idx) => {
+      if (!rk.content || typeof rk.content !== 'string') {
+        errors.push(`Ficha de reglamento en índice ${idx} no tiene "content" válido.`);
+      }
+    });
+  }
+
+  if (modJson.systemPrompt && typeof modJson.systemPrompt !== 'string') {
+    errors.push('El campo "systemPrompt" debe ser una cadena de texto válida.');
   }
 
   if (Array.isArray(modJson.factions) && modJson.factions.length > 0) {
@@ -210,6 +225,8 @@ export function setActiveLayer(uid, layer, modId) {
     setDbActiveLayer(layer, modId);
   } catch (_) {}
 
+  notifyModChange({ layer, modId });
+
   if (uid && db) {
     try {
       const userDocRef = doc(db, 'players', uid);
@@ -239,6 +256,8 @@ export function setMasterActiveMod(uid, modId) {
     localStorage.setItem(ACTIVE_LAYERS_KEY, JSON.stringify(current));
     Object.entries(current).forEach(([l, m]) => setDbActiveLayer(l, m));
   } catch (_) {}
+
+  notifyModChange({ masterModId: modId });
 
   if (uid && db) {
     try {
@@ -294,6 +313,58 @@ export async function getInstalledMods(uid = null) {
 }
 
 /**
+ * Descarga y almacena en IndexedDB todos los PDFs de un mod de misiones para modo Offline
+ */
+export async function downloadAndCacheMissionPdfs(modJson, onProgress) {
+  if (!modJson || !modJson.missionPdfs) return { success: true, count: 0 };
+  const pdfConfig = modJson.missionPdfs;
+  const rawBase = pdfConfig.baseUrl || '';
+
+  const targets = [];
+  const addTarget = (file) => {
+    if (file && typeof file === 'string') {
+      const clean = file.replace(/^\//, '');
+      if (!targets.includes(clean)) targets.push(clean);
+    }
+  };
+
+  ['missions1v1', 'missions2v2'].forEach(key => {
+    const map = pdfConfig[key] || {};
+    Object.values(map).forEach(entry => {
+      if (typeof entry === 'string') addTarget(entry);
+      else if (typeof entry === 'object' && entry) {
+        addTarget(entry.file);
+        addTarget(entry.fileEs || entry.file_es);
+        addTarget(entry.fileEn || entry.file_en);
+      }
+    });
+  });
+
+  let downloaded = 0;
+  for (let i = 0; i < targets.length; i++) {
+    const targetFile = targets[i];
+    const fullUrl = (targetFile.startsWith('http://') || targetFile.startsWith('https://'))
+      ? targetFile
+      : `${rawBase.replace(/\/$/, '')}/${targetFile}`;
+
+    try {
+      if (onProgress) onProgress(i + 1, targets.length, targetFile);
+      const res = await fetch(fullUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        const blobKey = `${modJson.modId}:${targetFile}`;
+        await saveBlobToDb(blobKey, blob, 'application/pdf');
+        downloaded++;
+      }
+    } catch (err) {
+      console.warn(`[ModManager] Could not cache PDF ${targetFile}:`, err);
+    }
+  }
+
+  return { success: true, count: downloaded, total: targets.length };
+}
+
+/**
  * Instala un mod a partir de su objeto JSON y lo persiste en IndexedDB + localStorage
  */
 export async function installMod(uid, modJson, sourceUrl = '') {
@@ -332,6 +403,7 @@ export async function installMod(uid, modJson, sourceUrl = '') {
 
     // 3. Activar automáticamente para sus capacidades
     setMasterActiveMod(uid, sanitized.modId);
+    notifyModChange({ installedModId: sanitized.modId });
 
     // 4. Sincronizar metadatos en Firestore si hay usuario logueado
     if (uid && db) {
@@ -410,6 +482,7 @@ export async function installModFromUrl(uid, downloadUrl) {
 export async function uninstallMod(uid, modId) {
   try {
     await deleteModFromIndexedDb(modId);
+    await deleteBlobsForMod(modId);
     localStorage.removeItem(`${MOD_CACHE_PREFIX}${modId}`);
 
     const installed = await getInstalledMods(uid);
@@ -428,6 +501,8 @@ export async function uninstallMod(uid, modId) {
     if (changed) {
       localStorage.setItem(ACTIVE_LAYERS_KEY, JSON.stringify(layers));
     }
+
+    notifyModChange({ uninstalledModId: modId });
 
     if (uid && db) {
       try {
@@ -450,8 +525,11 @@ export async function uninstallMod(uid, modId) {
 
 // ── GETTERS DESACOPLADOS PARA LAS VISTAS BASE ─────────────────────────────────
 
+// Caché en memoria para URLs de Blobs ya generadas
+const blobUrlCache = new Map();
+
 /**
- * Obtiene la URL del PDF de una misión desde el mod de misiones activo.
+ * Obtiene la URL del PDF de una misión desde el mod de misiones activo (Offline o Remoto).
  * Si no hay ningún mod de misiones activo, devuelve NULL.
  */
 export function getMissionPdfUrl(missionName, lang = 'es', mode = '1vs1', uid = null) {
@@ -472,11 +550,18 @@ export function getMissionPdfUrl(missionName, lang = 'es', mode = '1vs1', uid = 
 
   if (!targetFile) return null;
 
+  // 1. Si tenemos un blob en memoria para este archivo, usarlo directamente
+  const blobKey = `${modData.modId}:${targetFile.replace(/^\//, '')}`;
+  if (blobUrlCache.has(blobKey)) {
+    return blobUrlCache.get(blobKey);
+  }
+
+  // 2. Comprobar si es URL absoluta
   if (targetFile.startsWith('http://') || targetFile.startsWith('https://')) {
     return targetFile;
   }
 
-  const rawBase = pdfConfig.baseUrl || 'pdfs/';
+  const rawBase = pdfConfig.baseUrl || '';
   const basePath = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
   
   if (rawBase.startsWith('http://') || rawBase.startsWith('https://')) {
@@ -491,6 +576,40 @@ export function getMissionPdfUrl(missionName, lang = 'es', mode = '1vs1', uid = 
   }
 
   return `${basePath}/${cleanBase}/${cleanFile}`;
+}
+
+/**
+ * Resuelve de forma asíncrona la URL del PDF, priorizando el Blob offline en IndexedDB
+ */
+export async function getMissionPdfUrlAsync(missionName, lang = 'es', mode = '1vs1', uid = null) {
+  const modData = getActiveModData(uid, MOD_LAYERS.MISSIONS);
+  if (!modData || !modData.missionPdfs) return null;
+
+  const pdfConfig = modData.missionPdfs;
+  const mapKey = mode === '2vs2' ? 'missions2v2' : 'missions1v1';
+  const missionEntry = pdfConfig[mapKey]?.[missionName];
+
+  if (!missionEntry) return null;
+
+  const isEn = (lang === 'en' || lang === 'EN');
+  const targetFile = (isEn
+    ? (missionEntry.fileEn || missionEntry.file_en || missionEntry.file_EN)
+    : (missionEntry.fileEs || missionEntry.file_es || missionEntry.file_ES))
+    || missionEntry.file;
+
+  if (!targetFile) return null;
+
+  const blobKey = `${modData.modId}:${targetFile.replace(/^\//, '')}`;
+  try {
+    const cachedBlob = await getBlobFromDb(blobKey);
+    if (cachedBlob) {
+      const objUrl = URL.createObjectURL(cachedBlob instanceof Blob ? cachedBlob : new Blob([cachedBlob], { type: 'application/pdf' }));
+      blobUrlCache.set(blobKey, objUrl);
+      return objUrl;
+    }
+  } catch (_) {}
+
+  return getMissionPdfUrl(missionName, lang, mode, uid);
 }
 
 export const SUPERADMIN_EMAILS = [

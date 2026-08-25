@@ -1,7 +1,7 @@
 {
   "name": "La Cuchara de Lobelia",
   "short_name": "Lobelia",
-  "description": "Herramienta de consulta rápida y generador de PDFs de escenarios para Middle-earth Strategy Battle Game.",
+  "description": "Herramienta comunitaria independiente para gestión lúdica, torneos y cálculo de tiradas para wargames.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

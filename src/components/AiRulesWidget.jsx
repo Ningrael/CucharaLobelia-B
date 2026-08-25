@@ -557,7 +557,7 @@ export default function AiRulesWidget({ user, profile, lang, onOpenAuthModal }) 
               }}
             >
               <span style={{ fontSize: '1.25rem' }}>🧙‍♂️</span>
-              <span>{lang === 'es' ? 'Lobelia está consultando los libros y reglamentos oficiales...' : 'Lobelia is consulting official rulebooks and erratas...'}</span>
+              <span>{lang === 'es' ? 'Lobelia está consultando la base de datos del mod de reglas activo...' : 'Lobelia is consulting active rules mod data...'}</span>
             </div>
           )}
 

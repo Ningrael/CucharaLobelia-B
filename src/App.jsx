@@ -21,7 +21,7 @@ import {
 import UserManagement from './components/UserManagement';
 import AppConfig from './components/AppConfig';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
-import { initSessionTracking, updateSessionUser, trackFeature } from './utils/analyticsTracker';
+import { initSessionTracking, updateSessionUser, trackFeature, getAnalyticsConsent, setAnalyticsConsent } from './utils/analyticsTracker';
 import { 
   doc, 
   getDoc, 
@@ -97,6 +97,22 @@ export default function App() {
     } catch (_) {}
     return false;
   });
+
+  // Estado para League Deep-Linking / QR
+  const [initialLeagueId, setInitialLeagueId] = useState(null);
+
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+      const hashParams = new URLSearchParams(hashQuery);
+      const leagueParam = searchParams.get('league') || hashParams.get('league');
+      if (leagueParam) {
+        setInitialLeagueId(leagueParam);
+        setView('league');
+      }
+    } catch (_) {}
+  }, []);
 
   // Estado del Prompt de Instalación PWA (Móvil / Escritorio)
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -312,6 +328,7 @@ export default function App() {
   // 3. Estado del Modal "Acerca de" y "Aviso Legal & Privacidad"
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isLegalOpen, setIsLegalOpen] = useState(false);
+  const [analyticsConsent, setAnalyticsConsentState] = useState(getAnalyticsConsent());
 
   // 4. Estados de Autenticación Global & Configuración
   const [user, setUser] = useState(null);
@@ -329,22 +346,26 @@ export default function App() {
     };
   }, []);
 
-  // Inicializar tracking de sesión anónima / usuario y tiempo de permanencia
+  // Inicializar tracking de sesión SOLO si el usuario ha otorgado consentimiento explícito (RGPD)
   useEffect(() => {
-    initSessionTracking(user, profile, lang);
-  }, []);
+    if (analyticsConsent === 'granted') {
+      initSessionTracking(user, profile, lang);
+    }
+  }, [analyticsConsent, user, profile, lang]);
 
   // Actualizar sesión cuando el usuario se loguea o cambia su perfil
   useEffect(() => {
-    updateSessionUser(user, profile);
-  }, [user, profile]);
+    if (analyticsConsent === 'granted') {
+      updateSessionUser(user, profile);
+    }
+  }, [user, profile, analyticsConsent]);
 
-  // Telemetría de vistas
+  // Telemetría de vistas (solo si consent === 'granted')
   useEffect(() => {
-    if (currentView) {
+    if (currentView && analyticsConsent === 'granted') {
       trackFeature(`view_${currentView}`);
     }
-  }, [currentView]);
+  }, [currentView, analyticsConsent]);
 
   // Estados del Modal de Perfil/Login
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -1373,7 +1394,7 @@ export default function App() {
       case 'calculator':
         return <Calculator lang={lang} translations={translations} />;
       case 'missions':
-        return <Missions lang={lang} translations={translations} setLang={setLang} />;
+        return <Missions lang={lang} translations={translations} setLang={setLang} setView={setView} />;
       case 'calendar':
         return <Calendar lang={lang} translations={translations} />;
       case 'league':
@@ -1385,6 +1406,7 @@ export default function App() {
             profile={profile}
             isAdmin={isAdmin}
             authLoading={authLoading}
+            initialLeagueId={initialLeagueId}
             onOpenAuthModal={() => {
               setAuthMode('login');
               setIsAuthModalOpen(true);
@@ -1635,6 +1657,133 @@ export default function App() {
         {renderActiveView()}
       </main>
 
+      {/* ── FOOTER PERMANENTE CON DESCARGO FAN PROJECT (USO NOMINATIVO) ── */}
+      <footer style={{
+        marginTop: 'auto',
+        padding: '24px 16px 32px 16px',
+        textAlign: 'center',
+        fontSize: '0.72rem',
+        color: 'var(--text-muted)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '8px'
+      }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setIsLegalOpen(true)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}
+          >
+            ⚖️ {lang === 'es' ? 'Aviso Legal, Privacidad & RGPD' : 'Legal Notice & Privacy'}
+          </button>
+          <span>•</span>
+          <button
+            type="button"
+            onClick={() => setIsAboutOpen(true)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}
+          >
+            🥄 {t.about_title}
+          </button>
+        </div>
+        <p style={{ margin: 0, maxWidth: '720px', lineHeight: '1.45', opacity: 0.8 }}>
+          {lang === 'es'
+            ? 'La Cuchara de Lobelia es un motor neutral y herramienta comunitaria independiente y no oficial. No está vinculada, aprobada, patrocinada ni asociada con Games Workshop Limited ni Middle-earth Enterprises. Todas las marcas registradas pertenecen a sus respectivos titulares y se citan exclusivamente con fines descriptivos e identificativos.'
+            : 'La Cuchara de Lobelia is an independent unofficial community tool. It is not affiliated with, endorsed, sponsored, or specifically approved by Games Workshop Limited or Middle-earth Enterprises. All trademarks belong to their respective owners.'}
+        </p>
+      </footer>
+
+      {/* ── BANNER DE CONSENTIMIENTO DE ANALÍTICA (RGPD & LSSI-CE) ── */}
+      {analyticsConsent === null && (
+        <div style={{
+          position: 'fixed',
+          bottom: '16px',
+          left: '12px',
+          right: '12px',
+          maxWidth: '560px',
+          margin: '0 auto',
+          background: 'rgba(18, 22, 19, 0.96)',
+          border: '1px solid var(--gold-primary)',
+          borderRadius: '12px',
+          padding: '14px 16px',
+          zIndex: 99999,
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>🛡️</span>
+            <strong style={{ color: 'var(--gold-primary)', fontSize: '0.88rem' }}>
+              {lang === 'es' ? 'Privacidad y Almacenamiento Técnico' : 'Privacy & Technical Storage'}
+            </strong>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+            {lang === 'es'
+              ? 'Utilizamos almacenamiento técnico estrictamente necesario para el funcionamiento de la app. Opcionalmente, ¿nos permites recopilar estadísticas anónimas de uso para mejorar la herramienta conforme al RGPD?'
+              : 'We use strictly necessary technical storage for app functionality. Optionally, do you allow us to collect anonymous usage stats under GDPR to improve the tool?'}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setIsLegalOpen(true)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                fontSize: '0.74rem',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                marginRight: 'auto'
+              }}
+            >
+              {lang === 'es' ? 'Más información' : 'Learn more'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAnalyticsConsent('denied');
+                setAnalyticsConsentState('denied');
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: 'var(--text-secondary)',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '0.76rem',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              {lang === 'es' ? 'Solo Esenciales' : 'Essential Only'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAnalyticsConsent('granted');
+                setAnalyticsConsentState('granted');
+              }}
+              style={{
+                background: 'var(--gold-primary)',
+                border: 'none',
+                color: '#111',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                fontSize: '0.76rem',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              {lang === 'es' ? 'Aceptar Analítica' : 'Accept Analytics'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modal Acerca De */}
       <Modal
         isOpen={isAboutOpen}
@@ -1677,8 +1826,8 @@ export default function App() {
             </h4>
             <p style={{ margin: '0 0 6px 0' }}>
               {lang === 'es'
-                ? 'El asistente de reglas "Lobelia: Tu referí de confianza" es una herramienta consultiva automatizada basada en modelos de lenguaje artificial (Google Gemini API). Analiza fragmentos de reglamentos oficiales indexados para ofrecer orientación rápida.'
-                : 'The rules assistant "Lobelia: Your Trusted Referee" is an automated advisory tool powered by artificial intelligence models (Google Gemini API). It parses indexed official rulebooks to provide rapid guidance.'}
+                ? 'El asistente de reglas "Lobelia: Tu referí de confianza" es una herramienta consultiva automatizada basada en modelos de lenguaje artificial (Google Gemini API). Opera analizando los datos proporcionados por el mod de reglas activo instalado por el usuario en su navegador.'
+                : 'The rules assistant "Lobelia: Your Trusted Referee" is an automated advisory tool powered by artificial intelligence models (Google Gemini API). It parses user-installed rules mods in the browser.'}
             </p>
             <p style={{ margin: '0 0 6px 0' }}>
               {lang === 'es'
@@ -1687,8 +1836,8 @@ export default function App() {
             </p>
             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               {lang === 'es'
-                ? '⚖️ En torneos o partidas competitivas, la decisión final vinculante siempre corresponde al árbitro u organizador humano del evento.'
-                : '⚖️ In official tournaments or competitive games, the human tournament referee holds final authority.'}
+                ? '⚖️ En torneos o partidas competitivas, las respuestas de la IA son meramente orientativas. La decisión final vinculante siempre corresponde al árbitro u organizador humano del evento.'
+                : '⚖️ In official tournaments or competitive games, AI responses are purely advisory. The human tournament referee holds final authority.'}
             </p>
           </div>
 
@@ -1700,8 +1849,8 @@ export default function App() {
             </h4>
             <p style={{ margin: '0 0 4px 0' }}>
               {lang === 'es'
-                ? '• Responsable: Proyecto lúdico comunitario sin fines de lucro "La Cuchara de Lobelia".'
-                : '• Controller: Non-commercial fan community project "La Cuchara de Lobelia".'}
+                ? '• Responsable: Proyecto lúdico y comunitario independiente "La Cuchara de Lobelia".'
+                : '• Controller: Independent fan community project "La Cuchara de Lobelia".'}
             </p>
             <p style={{ margin: '0 0 4px 0' }}>
               {lang === 'es'
@@ -1715,7 +1864,7 @@ export default function App() {
             </p>
             <p style={{ margin: 0 }}>
               {lang === 'es'
-                ? '• Derechos del usuario: Puedes editar tus datos o solicitar la supresión de tu cuenta en cualquier momento desde tu Perfil de Jugador.'
+                ? '• Derechos del usuario: Tienes derecho de acceso, rectificación, portabilidad y supresión de tu cuenta en cualquier momento desde tu Perfil de Jugador.'
                 : '• User rights: You may edit your data or request deletion of your account at any time from your Player Profile.'}
             </p>
           </div>
@@ -1728,13 +1877,13 @@ export default function App() {
             </h4>
             <p style={{ margin: '0 0 6px 0' }}>
               {lang === 'es'
-                ? 'Esta aplicación NO utiliza cookies publicitarias, comerciales ni de seguimiento de terceros. Únicamente se utiliza almacenamiento técnico esencial (localStorage):'
-                : 'This application does NOT use advertising or third-party tracking cookies. Only strictly necessary technical storage (localStorage) is used:'}
+                ? 'Esta aplicación no utiliza cookies publicitarias ni de terceros con fines comerciales. Se utiliza almacenamiento técnico esencial (localStorage e IndexedDB) para mantener tu sesión, recordar tu idioma y guardar tus mods instalados localmente en tu navegador.'
+                : 'This application does not use commercial advertising cookies. Strictly necessary technical storage (localStorage and IndexedDB) is used for sessions, preferences, and offline mod storage.'}
             </p>
             <ul style={{ margin: '0 0 4px 0', paddingLeft: '20px', fontSize: '0.78rem' }}>
               <li><strong>firebase:authUser</strong>: {lang === 'es' ? 'Mantiene abierta tu sesión autenticada.' : 'Keeps your authenticated session open.'}</li>
               <li><strong>lobelia_lang</strong>: {lang === 'es' ? 'Recuerda tu idioma de preferencia.' : 'Remembers your language preference.'}</li>
-              <li><strong>lobelia_ai_usage</strong>: {lang === 'es' ? 'Controla el consumo de la cuota diaria gratuita de 30 consultas de IA.' : 'Manages your 30 free daily AI query quota.'}</li>
+              <li><strong>lobelia_analytics_consent</strong>: {lang === 'es' ? 'Almacena tu preferencia de consentimiento RGPD.' : 'Stores your GDPR consent preference.'}</li>
             </ul>
           </div>
 
@@ -1746,8 +1895,8 @@ export default function App() {
             </h4>
             <p style={{ margin: 0, fontSize: '0.76rem' }}>
               {lang === 'es'
-                ? 'Middle-earth Strategy Battle Game (MESBG) y sus reglamentos, nombres y miniaturas son marcas registradas de Games Workshop Limited y Middle-earth Enterprises. La Cuchara de Lobelia es una herramienta comunitaria gratuita y no oficial, sin ánimo de lucro y sin vinculación comercial con dichas entidades.'
-                : 'Middle-earth Strategy Battle Game (MESBG) and its rulebooks, names, and miniatures are registered trademarks of Games Workshop Limited and Middle-earth Enterprises. La Cuchara de Lobelia is a free, non-commercial, unofficial community companion tool.'}
+                ? 'La Cuchara de Lobelia es una aplicación web comunitaria independiente y no oficial. No está vinculada, aprobada, patrocinada ni asociada con Games Workshop Limited ni Middle-earth Enterprises. Todas las marcas registradas pertenecen a sus respectivos titulares y se citan exclusivamente con fines descriptivos e identificativos bajo los límites del uso nominativo.'
+                : 'La Cuchara de Lobelia is an independent unofficial community tool. It is not affiliated with, endorsed, sponsored, or specifically approved by Games Workshop Limited or Middle-earth Enterprises. All trademarks belong to their respective owners.'}
             </p>
           </div>
 

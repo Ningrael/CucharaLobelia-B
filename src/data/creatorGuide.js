@@ -1,49 +1,55 @@
 // src/data/creatorGuide.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Manual Oficial y Plantillas para Creadores de Mods de La Cuchara de Lobelia
-// Estructura de 4 Tipos de Mods Independientes (Schema v1.0)
+// Guía Exhaustiva Paso a Paso: Módulo 1 (Misiones) y Módulo 2 (Árbitro IA)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CREATOR_GUIDE_MD = `# 📚 Manual Oficial para Creadores de Mods
-### La Cuchara de Lobelia — Engine v3.0 (Schema v1.0)
+### La Cuchara de Lobelia — Motor Neutral v3.0 (Schema v1.0)
 
-Bienvenido a la guía oficial para creadores de la comunidad de **La Cuchara de Lobelia**. Este motor es **100% neutral y modular**, lo que significa que el servidor no aloja ningún contenido propietario; todo el material es aportado por la comunidad mediante archivos de datos y alojamientos independientes.
+Bienvenido a la guía oficial para creadores de la comunidad de **La Cuchara de Lobelia**.
 
----
-
-## 🧩 Los 4 Tipos de Mods en La Cuchara de Lobelia
-
-1. **🗺️ TIPO 1: Mod de Misiones & Visor de PDFs** (Escenarios 1v1 y 2v2, mapas de despliegue y objetivos).
-2. **🧙‍♂️ TIPO 2: Mod de Árbitro IA** (Base de conocimiento indexada, FAQs y citas exactas de manuales).
-3. **⚔️ TIPO 3: Mod de Army Builder** (Facciones, miniaturas, atributos, puntos y opciones de equipo).
-4. **🎲 TIPO 4: Mod de Duelos & Live Tracker** (Puntos de desmoronamiento al 50%/25% y seguimiento en vivo).
+La aplicación opera como un **motor neutral y abierto**: no contiene reglas ni documentos propietarios dentro de sus servidores. Son los aficionados, clubes y organizadores de torneos quienes crean y comparten paquetes de datos mediante **enlaces públicos externos** (como GitHub, Gist o Pastebin).
 
 ---
 
-## 🗺️ GUÍA EXHAUSTIVA: Cómo Crear y Publicar un Mod de Misiones (Tipo 1)
+## 🎯 Los 2 Módulos Principales de la Comunidad
+
+1. **🎲 MÓDULO 1: Mod de Misiones & Visor de Mapas** (Escenarios 1v1 y 2v2, soporte online y descarga 100% Offline para torneos).
+2. **🤖 MÓDULO 2: Mod de Árbitro IA** (Base de conocimiento indexada de reglas, suplementos, preguntas frecuentes y aclaraciones para el asistente consultivo).
+
+*(El módulo de Constructor de Listas de Ejército queda reservado para futuras fases del proyecto).*
 
 ---
 
-### 📂 1. Estructura Exacta de Carpetas y Ubicación de los PDFs
+# 🎲 GUÍA 1: CÓMO CREAR UN MOD DE MISIONES Y ESCENARIOS
 
-Para que el visor de La Cuchara de Lobelia encuentre cada PDF sin errores, debes organizar tus carpetas en tu ordenador y en tu repositorio de GitHub exactamente así:
+Un mod de misiones permite a los jugadores y torneos:
+* Utilizar el **Selector Aleatorio de Misiones de Torneo** (Pools de Misiones).
+* Abrir el **Visor de Mapas y Despliegue en PDF** en español e inglés directamente desde la app.
+* **Descarga 100% Offline:** Guardar todos los PDFs en la memoria del navegador del móvil (IndexedDB) para jugar en sótanos o lugares sin cobertura.
+
+---
+
+### 📂 Paso 1.1: Estructura de Carpetas en tu Repositorio (GitHub)
+
+Crea un repositorio público en [GitHub.com](https://github.com) con la siguiente estructura exacta:
 
 \`\`\`text
-📁 mi-repositorio-misiones/
+📁 mi-pack-misiones/
 │
 ├── 📄 mod-misiones.json          <-- Archivo de configuración en la RAÍZ
-├── 📄 README.md                  <-- Archivo descriptivo inicial
 │
-└── 📁 pdfs/                      <-- CARPETA PRINCIPAL DE DOCUMENTOS
-    ├── 📄 DOMINATION_ES.pdf      <-- Misiones 1v1 sueltas dentro de pdfs/
+└── 📁 pdfs/                      <-- Carpeta principal de documentos PDF
+    ├── 📄 DOMINATION_ES.pdf      <-- Misiones 1v1 van en la raíz de pdfs/
     ├── 📄 DOMINATION_EN.pdf
     ├── 📄 TO THE DEATH!_ES.pdf
     ├── 📄 TO THE DEATH!_EN.pdf
     ├── 📄 HOLD GROUND_ES.pdf
     ├── 📄 HOLD GROUND_EN.pdf
-    ├── ... (resto de las 24 misiones 1v1)
+    ├── ... (resto de misiones 1v1)
     │
-    └── 📁 2vs2/                  <-- SUBCARPETA OBLIGATORIA PARA MISIONES 2vs2
+    └── 📁 2vs2/                  <-- Subcarpeta OBLIGATORIA para misiones 2vs2
         ├── 📄 NO ESCAPE_ES.pdf
         ├── 📄 NO ESCAPE_EN.pdf
         ├── 📄 TOTAL CONQUEST_ES.pdf
@@ -58,19 +64,18 @@ Para que el visor de La Cuchara de Lobelia encuentre cada PDF sin errores, debes
         └── 📄 DUEL OF WITS_EN.pdf
 \`\`\`
 
-> ⚠️ **REGLA DE ORO DE CARPETAS:**
-> * Los PDFs de las **24 misiones 1v1** van **sueltos** directamente dentro de la carpeta \`pdfs/\`.
-> * Los PDFs de las **6 misiones 2vs2** van dentro de la **subcarpeta** \`pdfs/2vs2/\`.
+> 💡 **Regla fundamental:**
+> * Los PDFs de las misiones individuales (1v1) se colocan sueltos dentro de \`pdfs/\`.
+> * Los PDFs de las misiones por parejas (2vs2) se colocan dentro de \`pdfs/2vs2/\`.
 
 ---
 
-### 🏷️ 2. Tabla Oficial de Nombres de Archivo y Claves
+### 🏷️ Paso 1.2: Tabla Oficial de Claves de Misión
 
-Tu archivo \`mod-misiones.json\` debe enlazar cada escenario usando las siguientes claves exactas:
+El motor de La Cuchara de Lobelia reconoce exactamente las siguientes claves en el JSON:
 
 #### ⚔️ Misiones 1 vs 1 (24 Escenarios en \`pdfs/\`):
-
-| Clave en JSON (\`missions1v1\`) | Archivo Español (\`fileEs\`) | Archivo Inglés (\`fileEn\`) |
+| Clave de Misión en JSON | Nombre Archivo Español (\`fileEs\`) | Nombre Archivo Inglés (\`fileEn\`) |
 | :--- | :--- | :--- |
 | \`"Domination"\` | \`DOMINATION_ES.pdf\` | \`DOMINATION_EN.pdf\` |
 | \`"To the Death!"\` | \`TO THE DEATH!_ES.pdf\` | \`TO THE DEATH!_EN.pdf\` |
@@ -86,7 +91,7 @@ Tu archivo \`mod-misiones.json\` debe enlazar cada escenario usando las siguient
 | \`"Contest of Champions"\` | \`CONTEST OF CHAMPIONS_ES.pdf\` | \`CONTEST OF CHAMPIONS_EN.pdf\` |
 | \`"Heirloom of Ages Past"\` | \`HEIRLOOM OF AGES PAST_ES.pdf\` | \`HEIRLOOM OF AGES PAST_EN.pdf\` |
 | \`"Sites of Power"\` | \`SITES OF POWER_ES.pdf\` | \`SITES OF POWER_EN.pdf\` |
-| \`"Command the Battlefield"\`| \`COMMAND THE BATTLEFIELD_ES.pdf\` | \`COMMAND THE BATTLEFIELD_EN.pdf\` |
+| \`"Command the Battlefield"\`| \`COMMAND THE BATTLEFIELD_ES.pdf\`| \`COMMAND THE BATTLEFIELD_EN.pdf\`|
 | \`"Retrieval"\` | \`RETRIEVAL_ES.pdf\` | \`RETRIEVAL_EN.pdf\` |
 | \`"Seize the Prizes"\` | \`SEIZE THE PRIZES_ES.pdf\` | \`SEIZE THE PRIZES_EN.pdf\` |
 | \`"Treasure Hoard"\` | \`TREASURE HOARD_ES.pdf\` | \`TREASURE HOARD_EN.pdf\` |
@@ -98,8 +103,7 @@ Tu archivo \`mod-misiones.json\` debe enlazar cada escenario usando las siguient
 | \`"Convergence"\` | \`CONVERGENCE_ES.pdf\` | \`CONVERGENCE_EN.pdf\` |
 
 #### 🛡️ Misiones 2 vs 2 (6 Escenarios en \`pdfs/2vs2/\`):
-
-| Clave en JSON (\`missions2v2\`) | Archivo Español (\`fileEs\`) | Archivo Inglés (\`fileEn\`) |
+| Clave de Misión en JSON | Nombre Archivo Español (\`fileEs\`) | Nombre Archivo Inglés (\`fileEn\`) |
 | :--- | :--- | :--- |
 | \`"No Escape"\` | \`2vs2/NO ESCAPE_ES.pdf\` | \`2vs2/NO ESCAPE_EN.pdf\` |
 | \`"Total Conquest"\` | \`2vs2/TOTAL CONQUEST_ES.pdf\` | \`2vs2/TOTAL CONQUEST_EN.pdf\` |
@@ -110,21 +114,19 @@ Tu archivo \`mod-misiones.json\` debe enlazar cada escenario usando las siguient
 
 ---
 
-### 📄 3. Estructura Completa del Archivo JSON
-
-Crea el archivo \`mod-misiones.json\` en la raíz de tu carpeta:
+### 📄 Paso 1.3: Plantilla del Archivo \`mod-misiones.json\`
 
 \`\`\`json
 {
-  "modId": "mi-mod-misiones-2026",
-  "modName": "Misiones Oficiales MESBG 2026",
+  "modId": "pack-misiones-torneo-2026",
+  "modName": "Pack Oficial de Misiones y Torneos 2026",
   "modVersion": "1.0.0",
-  "modAuthor": "Tu Nombre o Nick",
+  "modAuthor": "Tu Nombre o Club",
   "gameSystem": "MESBG",
   "schemaVersion": "1.0",
-  "description": "Colección completa de 24 escenarios 1v1 y 6 escenarios 2v2 con mapas en español e inglés.",
+  "description": "24 escenarios 1v1 y 6 escenarios 2v2 con mapas detallados de despliegue y objetivos.",
   "capabilities": ["missions"],
-  "tags": ["misiones", "escenarios", "mapas", "torneo"],
+  "tags": ["misiones", "mapas", "escenarios", "torneo"],
   "missionPdfs": {
     "baseUrl": "https://raw.githubusercontent.com/TU_USUARIO/TU_REPOSITORIO/main/pdfs/",
     "missions1v1": {
@@ -167,79 +169,97 @@ Crea el archivo \`mod-misiones.json\` en la raíz de tu carpeta:
 
 ---
 
-### 🌐 4. Subida y Alojamiento en GitHub
+# 🤖 GUÍA 2: CÓMO CREAR UN MOD DE ÁRBITRO DE REGLAS IA
 
-1. **Crear Repositorio Público:**
-   * Entra a [GitHub.com](https://github.com) y crea un nuevo repositorio público (ejemplo: \`mesbg-missions-mod\`).
-   * Añade el archivo inicial \`README.md\`.
-
-2. **Subir el JSON a la Raíz:**
-   * Pulsa en **\`Add file\`** ➔ **\`Upload files\`**.
-   * Arrastra tu archivo \`mod-misiones.json\` y haz clic en **\`Commit changes\`**.
-
-3. **Subir la Carpeta \`pdfs/\`:**
-   * Puedes subir la carpeta \`pdfs/\` al repositorio, o crear un **Release** adjuntando el paquete comprimido \`.zip\`.
+El Árbitro de Reglas con Inteligencia Artificial utiliza una base de conocimiento estructurada para responder dudas en mesa de juego con **citas exactas de páginas, aclaraciones oficiales y resolución paso a paso de casos complejos**.
 
 ---
 
-### 🚀 5. Enlace Universal y Envío a La Cuchara de Lobelia
+### 📄 Paso 2.1: Estructura del Archivo JSON para Árbitro IA
 
-1. Tu enlace universal para que cualquier jugador instale tu mod con 1 clic es:
-   👉 **\`https://raw.githubusercontent.com/TU_USUARIO/TU_REPOSITORIO/main/mod-misiones.json\`**
-2. Entra a **La Cuchara de Lobelia** ➔ Pestaña **📤 Envía tu Mod**.
-3. Pega tu enlace, indica el nombre y autor, y marca **\`[x] 🗺️ Misiones (PDFs)\`**.
-4. ¡Una vez aprobado, aparecerá en el **Workshop público** disponible para toda la comunidad!
+El archivo contiene el array \`rulesKnowledge\`. Cada entrada representa un bloque temático de reglas, acción heroica, regla especial o FAQ:
+
+\`\`\`json
+{
+  "modId": "suplemento-reglas-ia-2026",
+  "modName": "Suplemento de Reglas y FAQs 2026",
+  "modVersion": "1.0.0",
+  "modAuthor": "Comunidad Arbitral MESBG",
+  "gameSystem": "MESBG",
+  "schemaVersion": "1.0",
+  "description": "Base de conocimiento exhaustiva con reglas de combate, acciones heroicas, magia y aclaraciones oficiales.",
+  "capabilities": ["rules_ai"],
+  "tags": ["ia", "reglas", "faqs", "arbitro", "combate"],
+  "rulesKnowledge": [
+    {
+      "id": "combate_combates_multiples",
+      "title": "Combates Múltiples y División de Ataques",
+      "category": "Fase de Combate",
+      "page": "Pág. 44-46",
+      "book": "Manual de Reglas",
+      "summary": "Resolución de combates donde intervienen varias miniaturas en peana con peana.",
+      "fullText": "Cuando varias miniaturas están trabadas en un mismo combate, el bando que obtenga el resultado más alto en el Duelo resulta vencedor. El jugador vencedor puede distribuir los Ataques de sus miniaturas entre los enemigos trabados en el combate que se encuentren a su alcance...",
+      "tags": ["combate", "duelo", "ataques", "herir", "apoyo"],
+      "faqs": [
+        "¿Puede una miniatura que apoya con lanza repartir sus ataques a un objetivo diferente? Sí, siempre que esté trabada legalmente a través de la miniatura frontal.",
+        "¿Cómo se resuelve si ambos bandos empatan la tirada más alta? Se compara el Atributo de Combate (C/F). Si persiste el empate, se efectúa una tirada de desempate (1-3 bando de la Oscuridad, 4-6 bando de la Luz)."
+      ]
+    },
+    {
+      "id": "acciones_heroicas_combate",
+      "title": "Combate Heroico (Heroic Combat)",
+      "category": "Acciones Heroicas",
+      "page": "Pág. 68",
+      "book": "Manual de Reglas",
+      "summary": "Permite a un Héroe y miniaturas aliadas trabadas mover y trabar de nuevo si eliminan a todos los enemigos en su combate.",
+      "fullText": "Un Héroe puede declarar un Combate Heroico al inicio de la Fase de Combate gastando 1 punto de Poder. Ese combate se resuelve en primer lugar. Si todas las miniaturas enemigas en ese combate resultan eliminadas, el Héroe y las miniaturas aliadas que participaron en él pueden realizar un movimiento inmediato de hasta su distancia máxima de Movimiento...",
+      "tags": ["poder", "combate heroico", "fase de combate", "heroe", "movimiento"],
+      "faqs": [
+        "¿Puede el héroe trabar a nuevos enemigos con el movimiento adicional? Sí, e incluso trabar a miniaturas que no estaban previamente en combate.",
+        "¿Se pueden lanzar proyectiles durante el movimiento de Combate Heroico? No, este movimiento es exclusivamente para trabar o recolocarse."
+      ]
+    }
+  ]
+}
+\`\`\`
 
 ---
 
-## 🎲 TIPO 4: Mod de Duelos & Tracker (Resumen)
-* Capacidad: \`"capabilities": ["duels"]\`
-* Contiene: Tablas de desmoronamiento (50%/25%) y reglas de combate en vivo.
+### ✍️ Paso 2.2: Consejos de Redacción para que la IA responda a la perfección
+
+1. **Citas y Fuentes Claras:** Rellena siempre \`page\` (ej: \`"Pág. 45"\`) y \`book\` (ej: \`"Manual de Reglas"\`). La IA usará estos datos para responder diciendo: *"Según el Manual de Reglas (Pág. 45)..."*.
+2. **Campo \`tags\` (Palabras Clave):** Añade sinónimos y términos habituales de búsqueda en mesa (ej: \`["lanza", "apoyo", "monstruo", "arrollar", "derribado"]\`).
+3. **Array \`faqs\`:** Escribe las dudas más polémicas o frecuentes que suelen surgir en torneos con su respuesta inequívoca. La IA consultará directamente este apartado para dar veredictos rápidos e indiscutibles.
 
 ---
 
-# 🤖 SECCIÓN TÉCNICA: SOLO PARA AGENTES DE IA (AI SPECIFICATION & PROMPT CONTRACT)
-> **Directiva del Sistema para LLMs (GPT-4, Claude, Gemini, Cursor, Copilot, DeepSeek, etc.):**
-> Si el usuario te proporciona este documento como contexto para construir o validar un Mod para **La Cuchara de Lobelia**, actúa como compilador determinista y sigue estrictamente las siguientes reglas del motor:
+# 🌐 CÓMO PUBLICAR TU MOD EN EL TALLER COMUNITARIO
 
-### 1. Requisitos Formales de Schema (JSON Specification v1.0)
-- **Codificación:** Obligatoriamente \`UTF-8\` estricto, sin BOM.
-- **Tipado estricto:**
-  - \`modId\`: \`string\` en formato kebab-case (\`^[a-z0-9-_]+$\`).
-  - \`modName\`: \`string\` legible (1-60 caracteres).
-  - \`modVersion\`: \`string\` bajo estándar SemVer (\`X.Y.Z\`).
-  - \`modAuthor\`: \`string\` con el nombre o nick del creador.
-  - \`gameSystem\`: Literal exacto \`"MESBG"\`.
-  - \`schemaVersion\`: Literal exacto \`"1.0"\`.
-  - \`capabilities\`: Array de subconjunto \`["missions" | "rules_ai" | "army_builder" | "duels"]\`.
+Una vez que tengas tu archivo \`.json\` subido a tu GitHub público:
 
-### 2. Algoritmo de Resolución de Rutas para Misiones (\`missionPdfs\`)
-- Sea \`baseUrl\` la URL base declarada (ej: \`"https://raw.githubusercontent.com/user/repo/main/pdfs/"\`).
-- Sea \`targetFile\` el nombre de archivo asignado a la misión.
-- **Regla 1:** Si \`targetFile\` es una URL absoluta (\`http://\` o \`https://\`), se utiliza directamente.
-- **Regla 2:** Si es relativa, la URL resuelta es: \`baseUrl.replace(/\\/$/, '') + '/' + targetFile.replace(/^\\//, '')\`.
-- **Regla 3:** Todas las misiones 1v1 deben resolver a la raíz de \`pdfs/\`.
-- **Regla 4:** Todas las misiones 2v2 DEBEN incluir el prefijo de carpeta \`2vs2/\` (ej: \`2vs2/NO ESCAPE_ES.pdf\`).
+1. Entra en **La Cuchara de Lobelia** ➔ Pestaña **Mods**.
+2. Pulsa en **\`📤 Publicar Mi Mod (URL)\`**.
+3. Pega el enlace directo a tu archivo (ej: \`https://raw.githubusercontent.com/tu-usuario/tu-repo/main/mod.json\`).
+4. Pulsa **\`🔍 Probar\`**: La app comprobará el archivo y rellenará el nombre y las opciones automáticamente.
+5. Haz clic en **\`Publicar en el Taller\`**.
 
-### 3. Seguridad y Límites del Motor
-- El motor es declarativo: **NO** se permite código evaluado (\`eval\`), inyecciones de HTML no sanitizadas ni ejecución de scripts externos.
-- La distribución se realiza mediante enlaces directos con soporte CORS (\`raw.githubusercontent.com\` o GitHub Releases).
+👉 **¡Listo!** A partir de ese momento, cualquier jugador del mundo podrá encontrar tu mod en el buscador, instalarlo con 1 clic en su móvil y dejarte reseñas de 5 estrellas ⭐.
 `;
 
-// ── PLANTILLAS DESCARGABLES PARA CADA TIPO DE MOD ────────────────────────────
+// ── PLANTILLAS DESCARGABLES MINIMALISTAS Y ACTUALIZADAS ───────────────────────
 
 export const TEMPLATE_MOD_1_MISSIONS = {
-  modId: "mi-mod-misiones",
-  modName: "Mi Mod de Misiones y Escenarios",
+  modId: "pack-misiones-ejemplo",
+  modName: "Pack de Misiones Oficiales",
   modVersion: "1.0.0",
-  modAuthor: "Mi Nick",
+  modAuthor: "Tu Nombre o Club",
   gameSystem: "MESBG",
   schemaVersion: "1.0",
-  description: "Plantilla oficial para escenarios 1v1 y 2v2 con soporte para visor de PDFs online y offline.",
+  description: "Plantilla para 24 escenarios 1v1 y 6 escenarios 2v2 con soporte para visor PDF online y descarga offline.",
   capabilities: ["missions"],
-  tags: ["misiones", "escenarios", "mapas"],
+  tags: ["misiones", "escenarios", "mapas", "torneo"],
   missionPdfs: {
-    baseUrl: "https://raw.githubusercontent.com/tu-usuario/tu-repo/main/pdfs/",
+    baseUrl: "https://raw.githubusercontent.com/TU_USUARIO/TU_REPOSITORIO/main/pdfs/",
     missions1v1: {
       "Domination": { "fileEs": "DOMINATION_ES.pdf", "fileEn": "DOMINATION_EN.pdf" },
       "To the Death!": { "fileEs": "TO THE DEATH!_ES.pdf", "fileEn": "TO THE DEATH!_EN.pdf" },
@@ -278,84 +298,28 @@ export const TEMPLATE_MOD_1_MISSIONS = {
 };
 
 export const TEMPLATE_MOD_2_RULES_AI = {
-  modId: "mi-mod-arbitro-ia",
-  modName: "Mi Mod de Árbitro IA",
+  modId: "suplemento-reglas-ia-ejemplo",
+  modName: "Suplemento de Reglas y FAQs para Árbitro IA",
   modVersion: "1.0.0",
-  modAuthor: "Mi Nick",
+  modAuthor: "Tu Nombre o Club",
   gameSystem: "MESBG",
   schemaVersion: "1.0",
-  description: "Base de conocimiento indexada y FAQs oficiales para el árbitro de reglas IA.",
+  description: "Base de conocimiento indexada de reglas, acciones heroicas y FAQs para el Árbitro IA.",
   capabilities: ["rules_ai"],
-  tags: ["ia", "reglas", "faqs"],
+  tags: ["ia", "reglas", "faqs", "arbitro"],
   rulesKnowledge: [
     {
-      id: "regla_ejemplo_1",
-      title: "Movimiento Heroico",
-      category: "Acciones Heroicas",
-      page: "Pág. 68",
-      book: "Rules Manual",
-      summary: "Se declara al inicio de la fase de movimiento antes de tirar prioridad.",
-      fullText: "El jugador activo declara la acción gastando 1 punto de Poder...",
-      tags: ["movimiento", "heroico", "prioridad", "poder"]
-    }
-  ]
-};
-
-export const TEMPLATE_MOD_3_ARMY_BUILDER = {
-  modId: "mi-mod-army-builder",
-  modName: "Mi Mod de Facciones y Miniaturas",
-  modVersion: "1.0.0",
-  modAuthor: "Mi Nick",
-  gameSystem: "MESBG",
-  schemaVersion: "1.0",
-  description: "Plantilla oficial para facciones, perfiles y reglas de miniaturas del creador de listas.",
-  capabilities: ["army_builder", "duels"],
-  tags: ["listas", "perfiles", "facciones"],
-  factions: [
-    {
-      factionId: "mi_faccion_ejemplo",
-      factionName: "Mi Facción Temática",
-      side: "good",
-      armyBonus: "Valor Indomable: +1 al combate al defender objetivos.",
-      models: [
-        {
-          id: "capitan_ejemplo",
-          name: "Capitán del Bosque",
-          type: "hero",
-          heroicTier: "Hero of Fortitude",
-          points: 60,
-          movement: "6\"",
-          fight: "5/3+",
-          strength: 4,
-          defense: 5,
-          attacks: 2,
-          wounds: 2,
-          courage: 5,
-          might: 2,
-          will: 1,
-          fate: 1,
-          wargear: ["Espada élfica", "Armadura"],
-          options: [
-            { "name": "Arco élfico", "points": 5, "isBow": true },
-            { "name": "Caballo", "points": 10, "isBow": false }
-          ],
-          specialRules: [
-            { "name": "Paso Ligero", "description": "No sufre penalización por terreno difícil boscoso." }
-          ]
-        }
+      id: "ejemplo_combate_multiple",
+      title: "Combates Múltiples y Distribución de Ataques",
+      category: "Fase de Combate",
+      page: "Pág. 44-46",
+      book: "Manual de Reglas",
+      summary: "Resolución de combates donde intervienen varias miniaturas en peana con peana.",
+      fullText: "Cuando varias miniaturas están trabadas en un mismo combate, el bando que obtenga el resultado más alto en el Duelo resulta vencedor...",
+      tags: ["combate", "duelo", "ataques", "herir", "apoyo"],
+      faqs: [
+        "¿Puede una miniatura que apoya con lanza repartir sus ataques a un objetivo diferente? Sí, siempre que esté trabada legalmente a través de la miniatura frontal."
       ]
     }
   ]
-};
-
-export const TEMPLATE_MOD_4_DUELS = {
-  modId: "mi-mod-duelos-tracker",
-  modName: "Mi Mod de Duelos y Tracker",
-  modVersion: "1.0.0",
-  modAuthor: "Mi Nick",
-  gameSystem: "MESBG",
-  schemaVersion: "1.0",
-  description: "Plantilla para cálculo de desmoronamiento y simulador de duelos.",
-  capabilities: ["duels"],
-  tags: ["duelos", "tracker"]
 };

@@ -29,14 +29,39 @@ export function getOperatingSystem() {
   return 'Other';
 }
 
+export const ANALYTICS_CONSENT_KEY = 'lobelia_analytics_consent'; // 'granted' | 'denied'
+
+export function getAnalyticsConsent() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ANALYTICS_CONSENT_KEY);
+}
+
+export function setAnalyticsConsent(consent) {
+  if (typeof window === 'undefined') return;
+  if (consent === 'granted') {
+    localStorage.setItem(ANALYTICS_CONSENT_KEY, 'granted');
+  } else {
+    localStorage.setItem(ANALYTICS_CONSENT_KEY, 'denied');
+    if (activeSession) {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      activeSession = null;
+    }
+  }
+}
+
 let activeSession = null;
 let heartbeatTimer = null;
 
 /**
- * Initializes session tracking for current visit.
+ * Initializes session tracking for current visit if GDPR consent is granted.
  * Heartbeat periodically updates time spent.
  */
 export function initSessionTracking(currentUser, profile, lang = 'es') {
+  // Verificación estricta de consentimiento previo (RGPD & Art. 22.2 LSSI)
+  if (getAnalyticsConsent() !== 'granted') {
+    return null;
+  }
+
   if (activeSession) return activeSession;
 
   const sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
@@ -115,6 +140,8 @@ export function updateSessionUser(currentUser, profile) {
  * Track specific feature usage (e.g. 'ai_query', 'calculator_run', 'mission_view', 'pdf_export')
  */
 export async function trackFeature(featureName, meta = {}) {
+  if (getAnalyticsConsent() !== 'granted') return;
+
   const today = new Date().toISOString().slice(0, 10);
 
   // Local storage quick caching

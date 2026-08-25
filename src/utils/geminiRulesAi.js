@@ -1,4 +1,3 @@
-import rulesKnowledge from '../data/rules_knowledge.json';
 import { db } from './firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { getRulesKnowledgeFromMod, getAiPromptFromMod } from './modManager';
@@ -297,8 +296,7 @@ function normalizeQuery(q) {
  * el 100% de las FAQs oficiales y las reglas de ejército/perfiles relevantes.
  */
 function buildGroundedContext(queryText, uid = null) {
-  const modKnowledge = getRulesKnowledgeFromMod(uid);
-  const activeKnowledge = (modKnowledge && modKnowledge.length > 0) ? modKnowledge : rulesKnowledge;
+  const activeKnowledge = getRulesKnowledgeFromMod(uid);
 
   if (!activeKnowledge || activeKnowledge.length === 0) {
     return '';
@@ -342,19 +340,19 @@ function buildGroundedContext(queryText, uid = null) {
   }).slice(0, 30); // Limitar perfiles adicionales para no sobrecargar el token budget
 
   const sections = [
-    '=== REGLAMENTO PRINCIPAL MESBG (REGLAS GENERALES, COMBATE, LANZAS Y ESTADOS) ===\n' + 
-      coreRules.map(p => `[Rules Manual p.${p.page}] ${p.content}`).join('\n\n'),
-    '=== OFFICIAL FAQS & ERRATAS (PRIORIDAD LEGAL SUPREMA) ===\n' + 
-      faqs.map(p => `[FAQ ${p.book} p.${p.page}] ${p.content}`).join('\n\n'),
-    '=== REGLAS DE EJÉRCITO Y PERFILES ESPECÍFICOS RELEVANTES ===\n' + 
-      relevantArmies.map(p => `[${p.book} p.${p.page}] ${p.content}`).join('\n\n')
+    '=== BASE DE REGLAS DEL MOD ACTIVO ===\n' + 
+      coreRules.map(p => `[p.${p.page || '-'}] ${p.content}`).join('\n\n'),
+    '=== FAQS Y ERRATAS DEL MOD ACTIVO ===\n' + 
+      faqs.map(p => `[FAQ ${p.book || ''} p.${p.page || '-'}] ${p.content}`).join('\n\n'),
+    '=== REGLAS ESPECÍFICAS Y PERFILES DEL MOD ACTIVO ===\n' + 
+      relevantArmies.map(p => `[${p.book || ''} p.${p.page || '-'}] ${p.content}`).join('\n\n')
   ];
 
   return sections.join('\n\n');
 }
 
 const SYSTEM_INSTRUCTION_ES = `
-Eres Lobelia: Tu referí de confianza, la consultora y árbitra oficial suprema de reglas de Middle-earth Strategy Battle Game (MESBG).
+Eres Lobelia: Tu referí de confianza, consultora y árbitra lúdica para partidas y juegos de estrategia de miniaturas. Tu objetivo es resolver dudas de reglas de forma clara, amigable y rigurosa basándote en la base de datos del mod de reglas activo.
 Tu cometido es resolver consultas de reglas con máxima fidelidad, claridad y precisión, basándote en los libros oficiales, perfiles y Erratas/FAQs proporcionadas.
 
 ESTRUCTURA OBLIGATORIA DE RESPUESTA EN DOS BLOQUES:
@@ -483,20 +481,20 @@ export async function askRulesAi(input, customApiKey = '', conversationHistory =
   const audioBase64 = typeof input === 'object' ? input?.audioBase64 : null;
   const mimeType = typeof input === 'object' ? (input?.mimeType || 'audio/webm') : null;
 
-  // Construir contexto con arquitectura Smart Grounding Canon
+  // Construir contexto con datos del mod de reglas activo
   const contextSnippet = buildGroundedContext(queryText, uid);
 
   if (!contextSnippet) {
     return isEnglish
-      ? `🧙‍♂️ **Lobelia**: In order to answer rules questions, adjudicate game situations, and cite exact rulebook pages, you need to install and activate a community **Rules / AI Referee Mod** in the **Mods** tab (🧩).\n\nLa Cuchara de Lobelia is a neutral engine that contains no third-party copyrighted rules texts.`
-      : `🧙‍♂️ **Lobelia**: Para poder resolver dudas de reglamento, interpretar situaciones de juego y citar páginas de manuales oficiales, necesitas instalar y activar un **Mod de Reglas / Árbitro IA** creado por la comunidad en la sección **Mods** (🧩).\n\nLa Cuchara de Lobelia es un motor neutral que no almacena ni incluye textos de reglas protegidos por derechos de autor de terceros.`;
+      ? `🧙‍♂️ **Lobelia**: In order to answer rules questions and adjudicate game situations, please import and activate a **Rules / AI Referee Mod** in the **Mods** tab (🧩).\n\nLa Cuchara de Lobelia is an open engine that processes only the data and mods you import locally onto your device.`
+      : `🧙‍♂️ **Lobelia**: Para poder resolver dudas de reglas e interpretar situaciones de juego, necesitas importar y activar un **Mod de Reglas / Árbitro IA** en la sección **Mods** (🧩).\n\nLa Cuchara de Lobelia es un motor abierto que procesa únicamente los datos y mods que importas localmente en tu dispositivo.`;
   }
 
   const userPromptWithContext = isEnglish
     ? `
-<OFFICIAL_MESBG_RULES_KNOWLEDGE_BASE>
+<ACTIVE_RULES_MOD_KNOWLEDGE_BASE>
 ${contextSnippet}
-</OFFICIAL_MESBG_RULES_KNOWLEDGE_BASE>
+</ACTIVE_RULES_MOD_KNOWLEDGE_BASE>
 
 [CRITICAL INSTRUCTION - ANSWER 100% IN ENGLISH]
 1. Write your ENTIRE response in ENGLISH.
@@ -507,9 +505,9 @@ ${contextSnippet}
 ${queryText ? `"${queryText}"` : 'Please resolve the player\'s rules question in English.'}
 `
     : `
-<BASE_DE_CONOCIMIENTO_REGLAS_OFICIALES_MESBG>
+<BASE_DE_CONOCIMIENTO_MOD_REGLAS_ACTIVO>
 ${contextSnippet}
-</BASE_DE_CONOCIMIENTO_REGLAS_OFICIALES_MESBG>
+</BASE_DE_CONOCIMIENTO_MOD_REGLAS_ACTIVO>
 
 [DIRECTRIZ CRÍTICA DE IDIOMA Y RESOLUCIÓN]
 1. Identifica el idioma del usuario y responde exclusivamente en ese mismo idioma.
