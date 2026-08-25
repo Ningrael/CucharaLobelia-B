@@ -114,6 +114,19 @@ El motor de La Cuchara de Lobelia reconoce exactamente las siguientes claves en 
 
 ---
 
+### 🌐 Cómo funciona el Soporte Multilenguaje (ES / EN)
+
+El visor de misiones de **La Cuchara de Lobelia** cuenta con conmutación dinámica de idioma en tiempo real:
+* **\`fileEs\`**: Archivo PDF traducido al español (ej: \`"DOMINATION_ES.pdf"\` o \`"2vs2/NO ESCAPE_ES.pdf"\`).
+* **\`fileEn\`**: Archivo PDF en inglés oficial (ej: \`"DOMINATION_EN.pdf"\` o \`"2vs2/NO ESCAPE_EN.pdf"\`).
+
+**Comportamiento del motor:**
+1. Si el jugador tiene la app en Español, el visor abre automáticamente \`fileEs\`.
+2. Si el jugador tiene la app en Inglés (o pulsa la bandera 🇬🇧 en la barra del visor), el motor conmuta automáticamente a \`fileEn\`.
+3. Si un creador solo dispone de PDFs en un solo idioma, puede especificar el mismo archivo en ambos campos (\`fileEs\` y \`fileEn\`), o usar la clave unificada \`"file": "DOMINATION.pdf"\`.
+
+---
+
 ### 📄 Paso 1.3: Plantilla del Archivo \`mod-misiones.json\`
 
 \`\`\`json
